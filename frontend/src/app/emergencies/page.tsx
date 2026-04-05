@@ -6,33 +6,33 @@ export default function EmergenciesPage() {
   const emergencies = [
     {
       id: "EM-001",
-      hospital: "City General Hospital",
+      hospital: "Qasr Al-Ainy Hospital",
       department: "Trauma Unit",
       type: "O-",
       units: 6,
       urgency: "Critical",
       time: "10 mins ago",
-      distance: "2.4 miles",
+      distance: "3.8 km",
     },
     {
       id: "EM-002",
-      hospital: "St. Mary's Medical Center",
+      hospital: "Ain Shams Specialized Hospital",
       department: "Surgery",
       type: "A+",
       units: 4,
       urgency: "High",
       time: "45 mins ago",
-      distance: "5.1 miles",
+      distance: "8.2 km",
     },
     {
       id: "EM-003",
-      hospital: "Pioneer Clinics",
+      hospital: "Dar El Fouad Hospital",
       department: "Maternity",
       type: "AB-",
       units: 2,
       urgency: "Medium",
       time: "2 hours ago",
-      distance: "8.0 miles",
+      distance: "12.5 km",
     }
   ];
 
@@ -129,7 +129,7 @@ export default function EmergenciesPage() {
                   <HeartPulse className="w-6 h-6 text-brand" />
                   Matching Engine
                 </h2>
-                <p className="text-sm text-zinc-400 mt-1">EM-001 • City General Hospital</p>
+                <p className="text-sm text-zinc-400 mt-1">EM-001 • Qasr Al-Ainy Hospital</p>
               </div>
               <div className="px-3 py-1.5 bg-brand/10 border border-brand/20 rounded-lg flex items-center gap-2 w-fit">
                 <span className="relative flex h-2.5 w-2.5">
@@ -148,7 +148,7 @@ export default function EmergenciesPage() {
               </div>
               <div className="bg-background border border-border rounded-xl p-4">
                 <div className="text-xs text-zinc-400 mb-1">Distance Radius</div>
-                <div className="text-xl font-bold text-white">10 miles</div>
+                <div className="text-xl font-bold text-white">15 km</div>
               </div>
               <div className="bg-background border border-border rounded-xl p-4">
                 <div className="text-xs text-zinc-400 mb-1">Compatible Donors</div>
@@ -165,9 +165,9 @@ export default function EmergenciesPage() {
             
             <div className="space-y-3 relative z-10">
               {[
-                { name: "Michael T.", distance: "1.2 mi", reliable: "98%", time: "ETA 12m", score: "99" },
-                { name: "Sarah W.", distance: "3.4 mi", reliable: "95%", time: "ETA 20m", score: "94" },
-                { name: "James K.", distance: "4.1 mi", reliable: "82%", time: "ETA 25m", score: "88" },
+                { name: "Mohamed T.", distance: "1.9 km", reliable: "98%", time: "ETA 12m", score: "99" },
+                { name: "Sara E.", distance: "5.4 km", reliable: "95%", time: "ETA 20m", score: "94" },
+                { name: "Youssef K.", distance: "6.6 km", reliable: "82%", time: "ETA 25m", score: "88" },
               ].map((donor, idx) => (
                 <div key={idx} className="flex items-center justify-between p-4 bg-background border border-border rounded-xl hover:border-zinc-600 transition-colors">
                   <div className="flex items-center gap-4">
