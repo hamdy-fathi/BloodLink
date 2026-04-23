@@ -1,16 +1,29 @@
 "use client";
 
-import React, { createContext, useContext, useState, useCallback, ReactNode } from "react";
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useCallback,
+  useEffect,
+  ReactNode,
+} from "react";
 import { BloodInventoryItem, Donor, User, AppNotification } from "./types";
-import { initialInventory, initialDonors, initialNotifications, mockUsers } from "./data";
+import {
+  authApi,
+  usersApi,
+  donorsApi,
+  inventoryApi,
+  notificationsApi,
+} from "./api";
 
 interface AppContextType {
   // Auth
   currentUser: User | null;
   isAuthenticated: boolean;
-  login: (email: string, password: string) => string | null; // returns error or null
+  login: (email: string, password: string) => Promise<string | null>;
   logout: () => void;
-  updateProfile: (updates: Partial<User>) => void;
+  updateProfile: (updates: Partial<User>) => Promise<void>;
 
   // Notifications
   notifications: AppNotification[];
@@ -32,84 +45,205 @@ interface AppContextType {
   updateDonor: (id: string, donor: Partial<Donor>) => void;
   deleteDonor: (id: string) => void;
   toggleDonorAvailability: (id: string) => void;
+
+  // Loading
+  loading: boolean;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
-let nextInvId = 9;
-let nextDonorId = 9;
-
 export function AppProvider({ children }: { children: ReactNode }) {
   // Auth
-  const [currentUser, setCurrentUser] = useState<User | null>(mockUsers[0].user); // auto-login as admin for dev
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
   const isAuthenticated = currentUser !== null;
 
-  const login = useCallback((email: string, password: string): string | null => {
-    const match = mockUsers.find((u) => u.email === email && u.password === password);
-    if (!match) return "Invalid email or password.";
-    setCurrentUser(match.user);
-    return null;
-  }, []);
+  // Data
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
+  const [inventory, setInventory] = useState<BloodInventoryItem[]>([]);
+  const [donors, setDonors] = useState<Donor[]>([]);
 
-  const logout = useCallback(() => {
-    setCurrentUser(null);
-  }, []);
-
-  const updateProfile = useCallback((updates: Partial<User>) => {
-    setCurrentUser((prev) => (prev ? { ...prev, ...updates } : null));
-  }, []);
-
-  // Notifications
-  const [notifications, setNotifications] = useState<AppNotification[]>(initialNotifications);
   const unreadCount = notifications.filter((n) => !n.read).length;
 
+  // ── Boot: restore session from stored token ──
+  useEffect(() => {
+    const token = localStorage.getItem("bloodlink_token");
+    if (!token) {
+      setLoading(false);
+      return;
+    }
+
+    authApi
+      .me()
+      .then((res) => {
+        setCurrentUser(res.data);
+      })
+      .catch(() => {
+        localStorage.removeItem("bloodlink_token");
+      })
+      .finally(() => setLoading(false));
+  }, []);
+
+  // ── Fetch data when authenticated ──
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    const fetchAll = async () => {
+      try {
+        const [invRes, donorRes, notifRes] = await Promise.all([
+          inventoryApi.getAll(),
+          donorsApi.getAll(),
+          notificationsApi.getAll(),
+        ]);
+        setInventory(
+          invRes.data.map((item: any) => ({
+            ...item,
+            lastUpdated:
+              typeof item.lastUpdated === "string"
+                ? item.lastUpdated
+                : new Date(item.lastUpdated).toISOString().slice(0, 16).replace("T", " "),
+          }))
+        );
+        setDonors(donorRes.data);
+        setNotifications(
+          notifRes.data.map((n: any) => ({
+            ...n,
+            timestamp:
+              typeof n.timestamp === "string"
+                ? n.timestamp
+                : new Date(n.timestamp).toISOString().slice(0, 16).replace("T", " "),
+          }))
+        );
+      } catch {
+        // silently fail for now
+      }
+    };
+
+    fetchAll();
+  }, [isAuthenticated]);
+
+  // ── Auth ──
+  const login = useCallback(
+    async (email: string, password: string): Promise<string | null> => {
+      try {
+        const res = await authApi.login(email, password);
+        localStorage.setItem("bloodlink_token", res.data.access_token);
+        setCurrentUser(res.data.user);
+        return null;
+      } catch (err: any) {
+        return err?.response?.data?.message || "Invalid email or password.";
+      }
+    },
+    []
+  );
+
+  const logout = useCallback(() => {
+    localStorage.removeItem("bloodlink_token");
+    setCurrentUser(null);
+    setNotifications([]);
+    setInventory([]);
+    setDonors([]);
+  }, []);
+
+  const updateProfile = useCallback(
+    async (updates: Partial<User>) => {
+      if (!currentUser) return;
+      try {
+        const res = await usersApi.update(currentUser.id, updates as Record<string, unknown>);
+        setCurrentUser(res.data);
+      } catch {
+        // silently fail
+      }
+    },
+    [currentUser]
+  );
+
+  // ── Notifications ──
   const markNotificationRead = useCallback((id: string) => {
-    setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
+    notificationsApi.markRead(id).catch(() => {});
+    setNotifications((prev) =>
+      prev.map((n) => (n.id === id ? { ...n, read: true } : n))
+    );
   }, []);
 
   const markAllRead = useCallback(() => {
+    notificationsApi.markAllRead().catch(() => {});
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
   }, []);
 
   const dismissNotification = useCallback((id: string) => {
+    notificationsApi.dismiss(id).catch(() => {});
     setNotifications((prev) => prev.filter((n) => n.id !== id));
   }, []);
 
   const clearAllNotifications = useCallback(() => {
+    notificationsApi.clearAll().catch(() => {});
     setNotifications([]);
   }, []);
 
-  // Inventory
-  const [inventory, setInventory] = useState<BloodInventoryItem[]>(initialInventory);
-  const [donors, setDonors] = useState<Donor[]>(initialDonors);
+  // ── Inventory ──
+  const addInventoryItem = useCallback(
+    async (item: Omit<BloodInventoryItem, "id">) => {
+      const res = await inventoryApi.create(item as Record<string, unknown>);
+      const newItem = res.data;
+      newItem.lastUpdated =
+        typeof newItem.lastUpdated === "string"
+          ? newItem.lastUpdated
+          : new Date(newItem.lastUpdated).toISOString().slice(0, 16).replace("T", " ");
+      setInventory((prev) => [...prev, newItem]);
+    },
+    []
+  );
 
-  const addInventoryItem = useCallback((item: Omit<BloodInventoryItem, "id">) => {
-    setInventory((prev) => [...prev, { ...item, id: `inv-${nextInvId++}` }]);
-  }, []);
+  const updateInventoryItem = useCallback(
+    async (id: string, updates: Partial<BloodInventoryItem>) => {
+      const res = await inventoryApi.update(id, updates as Record<string, unknown>);
+      const updated = res.data;
+      updated.lastUpdated =
+        typeof updated.lastUpdated === "string"
+          ? updated.lastUpdated
+          : new Date(updated.lastUpdated).toISOString().slice(0, 16).replace("T", " ");
+      setInventory((prev) =>
+        prev.map((item) => (item.id === id ? updated : item))
+      );
+    },
+    []
+  );
 
-  const updateInventoryItem = useCallback((id: string, updates: Partial<BloodInventoryItem>) => {
-    setInventory((prev) => prev.map((item) => (item.id === id ? { ...item, ...updates } : item)));
-  }, []);
-
-  const deleteInventoryItem = useCallback((id: string) => {
+  const deleteInventoryItem = useCallback(async (id: string) => {
+    await inventoryApi.remove(id);
     setInventory((prev) => prev.filter((item) => item.id !== id));
   }, []);
 
-  // Donors
-  const addDonor = useCallback((donor: Omit<Donor, "id">) => {
-    setDonors((prev) => [...prev, { ...donor, id: `d-${nextDonorId++}` }]);
-  }, []);
+  // ── Donors ──
+  const addDonor = useCallback(
+    async (donor: Omit<Donor, "id">) => {
+      const res = await donorsApi.create(donor as Record<string, unknown>);
+      setDonors((prev) => [...prev, res.data]);
+    },
+    []
+  );
 
-  const updateDonor = useCallback((id: string, updates: Partial<Donor>) => {
-    setDonors((prev) => prev.map((d) => (d.id === id ? { ...d, ...updates } : d)));
-  }, []);
+  const updateDonor = useCallback(
+    async (id: string, updates: Partial<Donor>) => {
+      const res = await donorsApi.update(id, updates as Record<string, unknown>);
+      setDonors((prev) =>
+        prev.map((d) => (d.id === id ? res.data : d))
+      );
+    },
+    []
+  );
 
-  const deleteDonor = useCallback((id: string) => {
+  const deleteDonor = useCallback(async (id: string) => {
+    await donorsApi.remove(id);
     setDonors((prev) => prev.filter((d) => d.id !== id));
   }, []);
 
-  const toggleDonorAvailability = useCallback((id: string) => {
-    setDonors((prev) => prev.map((d) => (d.id === id ? { ...d, available: !d.available } : d)));
+  const toggleDonorAvailability = useCallback(async (id: string) => {
+    const res = await donorsApi.toggleAvailability(id);
+    setDonors((prev) =>
+      prev.map((d) => (d.id === id ? res.data : d))
+    );
   }, []);
 
   return (
@@ -135,6 +269,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         updateDonor,
         deleteDonor,
         toggleDonorAvailability,
+        loading,
       }}
     >
       {children}
@@ -144,6 +279,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
 export function useAppContext() {
   const context = useContext(AppContext);
-  if (!context) throw new Error("useAppContext must be used within an AppProvider");
+  if (!context)
+    throw new Error("useAppContext must be used within an AppProvider");
   return context;
 }

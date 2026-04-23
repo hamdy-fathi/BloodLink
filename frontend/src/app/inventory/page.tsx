@@ -4,6 +4,7 @@ import { useState, useMemo } from "react";
 import Navbar from "@/components/Navbar";
 import { useAppContext } from "@/lib/context";
 import { BloodInventoryItem } from "@/lib/types";
+import { useToast } from "@/components/Toast";
 import {
   Search,
   Filter,
@@ -28,6 +29,7 @@ function getStatusFromUnits(units: number): BloodInventoryItem["status"] {
 
 export default function InventoryPage() {
   const { inventory, addInventoryItem, updateInventoryItem, deleteInventoryItem } = useAppContext();
+  const { toast } = useToast();
 
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("All");
@@ -78,34 +80,32 @@ export default function InventoryPage() {
     setOpenActionId(null);
   }
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     const units = parseInt(formUnits) || 0;
     const expiring = parseInt(formExpiring) || 0;
-    const status = getStatusFromUnits(units);
-    const now = new Date().toISOString().slice(0, 16).replace("T", " ");
 
-    if (editingItem) {
-      updateInventoryItem(editingItem.id, {
-        type: formType,
-        units,
-        status,
-        critical: status === "Critical",
-        expiringIn48h: expiring,
-        lastUpdated: now,
-      });
-    } else {
-      addInventoryItem({
-        type: formType,
-        units,
-        status,
-        trend: "+0%",
-        critical: status === "Critical",
-        expiringIn48h: expiring,
-        lastUpdated: now,
-      });
+    try {
+      if (editingItem) {
+        await updateInventoryItem(editingItem.id, {
+          type: formType,
+          units,
+          expiringIn48h: expiring,
+        });
+        toast("success", "Inventory Updated", `${formType} updated to ${units} units.`);
+      } else {
+        await addInventoryItem({
+          type: formType,
+          units,
+          trend: "+0%",
+          expiringIn48h: expiring,
+        } as any);
+        toast("success", "Blood Units Added", `${units} units of ${formType} added to inventory.`);
+      }
+      setShowModal(false);
+    } catch {
+      toast("error", "Failed", "Could not save inventory item. Please try again.");
     }
-    setShowModal(false);
   }
 
   function confirmDelete(id: string) {
@@ -113,9 +113,15 @@ export default function InventoryPage() {
     setOpenActionId(null);
   }
 
-  function handleDelete() {
+  async function handleDelete() {
     if (deletingId) {
-      deleteInventoryItem(deletingId);
+      const item = inventory.find((i) => i.id === deletingId);
+      try {
+        await deleteInventoryItem(deletingId);
+        toast("success", "Item Removed", `${item?.type ?? "Blood type"} removed from inventory.`);
+      } catch {
+        toast("error", "Delete Failed", "Could not remove the item.");
+      }
       setDeletingId(null);
     }
   }
@@ -136,7 +142,7 @@ export default function InventoryPage() {
             className="px-4 py-2 rounded-lg bg-brand text-white text-sm font-medium shadow-[0_0_15px_rgba(225,29,72,0.3)] hover:bg-brand-hover transition-colors flex items-center gap-2 w-fit"
           >
             <Plus className="w-4 h-4" />
-            Add Blood Type
+            Add Blood Units
           </button>
         </div>
 
@@ -284,7 +290,7 @@ export default function InventoryPage() {
             <button onClick={() => setShowModal(false)} className="absolute top-4 right-4 text-zinc-500 hover:text-white transition-colors">
               <X className="w-5 h-5" />
             </button>
-            <h2 className="text-xl font-bold mb-6">{editingItem ? "Edit Blood Type" : "Add Blood Type"}</h2>
+            <h2 className="text-xl font-bold mb-6">{editingItem ? "Edit Blood Units" : "Add Blood Units"}</h2>
             <form onSubmit={handleSubmit} className="space-y-5">
               <div>
                 <label className="block text-sm font-medium text-zinc-300 mb-1">Blood Type</label>

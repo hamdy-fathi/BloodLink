@@ -1,0 +1,187 @@
+%%{init: {'theme': 'dark', 'themeVariables': { 'primaryColor': '#e11d48', 'edgeLabelBackground':'#18181b', 'tertiaryColor': '#27272a' }}}%%
+classDiagram
+    direction TB
+
+    class User {
+        +String id
+        +String name
+        +String email
+        +String phone
+        +UserRole role
+        +String avatar
+        +String hospital
+        +Date joinedAt
+        +login(email, password) User
+        +logout() void
+        +updateProfile(data) void
+    }
+
+    class UserRole {
+        <<enumeration>>
+        admin
+        staff
+        manager
+        donor
+    }
+
+    class Donor {
+        +BloodType bloodType
+        +int age
+        +Date lastDonation
+        +int totalDonations
+        +float reliability
+        +boolean available
+        +String city
+        +boolean eligible
+        +toggleAvailability() void
+        +checkEligibility() boolean
+    }
+
+    class BloodInventoryItem {
+        +String id
+        +BloodType type
+        +int units
+        +InventoryStatus status
+        +String trend
+        +boolean critical
+        +int expiringIn48h
+        +DateTime lastUpdated
+        +updateUnits(count) void
+        +checkExpiry() void
+    }
+
+    class InventoryStatus {
+        <<enumeration>>
+        Healthy
+        Warning
+        Critical
+    }
+
+    class BloodType {
+        <<enumeration>>
+        O+
+        O-
+        A+
+        A-
+        B+
+        B-
+        AB+
+        AB-
+    }
+
+    class EmergencyRequest {
+        +String id
+        +String hospitalId
+        +String department
+        +BloodType requiredType
+        +int unitsNeeded
+        +UrgencyLevel urgency
+        +DateTime createdAt
+        +float distance
+        +matchDonors() Donor[]
+        +notifyMatched() void
+    }
+
+    class UrgencyLevel {
+        <<enumeration>>
+        Critical
+        High
+        Medium
+        Low
+    }
+
+    class Notification {
+        +String id
+        +NotificationType type
+        +String title
+        +String message
+        +DateTime timestamp
+        +boolean read
+        +markAsRead() void
+        +dismiss() void
+    }
+
+    class NotificationType {
+        <<enumeration>>
+        emergency
+        shortage
+        donation
+        system
+        transfer
+    }
+
+    class Hospital {
+        +String id
+        +String name
+        +String department
+        +String city
+        +float latitude
+        +float longitude
+        +requestBlood(type, units) EmergencyRequest
+    }
+
+    class DonationRecord {
+        +String id
+        +String donorId
+        +BloodType bloodType
+        +int unitsDonated
+        +DateTime donationDate
+        +String collectionCenter
+        +boolean successful
+    }
+
+    class TransferRecord {
+        +String id
+        +String fromHospitalId
+        +String toHospitalId
+        +BloodType bloodType
+        +int units
+        +DateTime dispatchedAt
+        +DateTime estimatedArrival
+        +TransferStatus status
+    }
+
+    class TransferStatus {
+        <<enumeration>>
+        Pending
+        InTransit
+        Delivered
+        Cancelled
+    }
+
+    class CompatibilityEngine {
+        +checkCompatibility(donor, request) float
+        +rankDonors(request) Donor[]
+        +calculateReliabilityScore(donor) float
+        +estimateArrivalTime(donor, hospital) int
+    }
+
+    User <|-- Donor
+    User "1" --> "1" UserRole : has
+    User "1" --> "0..*" Notification : receives
+
+    Donor "1" --> "1" BloodType : has
+    Donor "1" --> "0..*" DonationRecord : completes
+    Donor "0..*" --> "0..*" EmergencyRequest : matched to
+
+    BloodInventoryItem "1" --> "1" BloodType : categorized by
+    BloodInventoryItem "1" --> "1" InventoryStatus : has
+
+    Hospital "1" --> "0..*" EmergencyRequest : creates
+    Hospital "1" --> "0..*" BloodInventoryItem : manages
+    Hospital "1" --> "0..*" User : employs
+
+    EmergencyRequest "1" --> "1" BloodType : requires
+    EmergencyRequest "1" --> "1" UrgencyLevel : has
+    EmergencyRequest "1" --> "0..*" Notification : triggers
+
+    Notification "1" --> "1" NotificationType : has
+
+    TransferRecord "1" --> "1" Hospital : from
+    TransferRecord "1" --> "1" Hospital : to
+    TransferRecord "1" --> "1" BloodType : contains
+    TransferRecord "1" --> "1" TransferStatus : has
+
+    CompatibilityEngine ..> Donor : analyzes
+    CompatibilityEngine ..> EmergencyRequest : processes
+    CompatibilityEngine ..> BloodType : validates

@@ -4,6 +4,7 @@ import { useState, useMemo } from "react";
 import Navbar from "@/components/Navbar";
 import { useAppContext } from "@/lib/context";
 import { Donor } from "@/lib/types";
+import { useToast } from "@/components/Toast";
 import {
   Search,
   Plus,
@@ -25,6 +26,7 @@ const BLOOD_TYPES = ["O+", "O-", "A+", "A-", "B+", "B-", "AB+", "AB-"];
 
 export default function DonorsPage() {
   const { donors, addDonor, updateDonor, deleteDonor, toggleDonorAvailability } = useAppContext();
+  const { toast } = useToast();
 
   const [searchQuery, setSearchQuery] = useState("");
   const [filterType, setFilterType] = useState("All");
@@ -95,35 +97,41 @@ export default function DonorsPage() {
     setOpenActionId(null);
   }
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     const now = new Date().toISOString().slice(0, 10);
 
-    if (editingDonor) {
-      updateDonor(editingDonor.id, {
-        name: formName,
-        email: formEmail,
-        phone: formPhone,
-        bloodType: formBloodType,
-        age: parseInt(formAge) || 0,
-        city: formCity,
-      });
-    } else {
-      addDonor({
-        name: formName,
-        email: formEmail,
-        phone: formPhone,
-        bloodType: formBloodType,
-        age: parseInt(formAge) || 0,
-        city: formCity,
-        lastDonation: now,
-        totalDonations: 0,
-        reliability: 50,
-        available: true,
-        eligible: true,
-      });
+    try {
+      if (editingDonor) {
+        await updateDonor(editingDonor.id, {
+          name: formName,
+          email: formEmail,
+          phone: formPhone,
+          bloodType: formBloodType,
+          age: parseInt(formAge) || 0,
+          city: formCity,
+        });
+        toast("success", "Donor Updated", `${formName}'s information has been updated.`);
+      } else {
+        await addDonor({
+          name: formName,
+          email: formEmail,
+          phone: formPhone,
+          bloodType: formBloodType,
+          age: parseInt(formAge) || 0,
+          city: formCity,
+          lastDonation: now,
+          totalDonations: 0,
+          reliability: 50,
+          available: true,
+          eligible: true,
+        });
+        toast("success", "Donor Registered", `${formName} (${formBloodType}) has been added.`);
+      }
+      setShowModal(false);
+    } catch {
+      toast("error", "Operation Failed", "Could not save donor. Please try again.");
     }
-    setShowModal(false);
   }
 
   function confirmDelete(id: string) {
@@ -131,11 +139,17 @@ export default function DonorsPage() {
     setOpenActionId(null);
   }
 
-  function handleDelete() {
+  async function handleDelete() {
     if (deletingId) {
-      deleteDonor(deletingId);
+      const donor = donors.find((d) => d.id === deletingId);
+      try {
+        await deleteDonor(deletingId);
+        toast("success", "Donor Removed", `${donor?.name ?? "Donor"} has been removed.`);
+        if (selectedDonor?.id === deletingId) setSelectedDonor(null);
+      } catch {
+        toast("error", "Delete Failed", "Could not remove the donor.");
+      }
       setDeletingId(null);
-      if (selectedDonor?.id === deletingId) setSelectedDonor(null);
     }
   }
 
@@ -266,7 +280,7 @@ export default function DonorsPage() {
                                 <Pencil className="w-3.5 h-3.5" /> Edit
                               </button>
                               <button
-                                onClick={() => { toggleDonorAvailability(donor.id); setOpenActionId(null); }}
+                                onClick={async () => { try { await toggleDonorAvailability(donor.id); toast("success", "Status Updated", `${donor.name} is now ${donor.available ? "unavailable" : "available"}.`); } catch { toast("error", "Update Failed", "Could not update donor status."); } setOpenActionId(null); }}
                                 className="flex items-center gap-2 w-full text-left px-4 py-2.5 text-sm text-zinc-300 hover:bg-zinc-800 transition-colors"
                               >
                                 {donor.available ? <ToggleLeft className="w-3.5 h-3.5" /> : <ToggleRight className="w-3.5 h-3.5" />}
@@ -354,7 +368,7 @@ export default function DonorsPage() {
 
                 <div className="flex gap-3 mt-6">
                   <button
-                    onClick={() => toggleDonorAvailability(selectedDonor.id)}
+                    onClick={async () => { try { await toggleDonorAvailability(selectedDonor.id); toast("success", "Status Updated", `${selectedDonor.name} is now ${selectedDonor.available ? "unavailable" : "available"}.`); } catch { toast("error", "Update Failed", "Could not update donor status."); } }}
                     className="flex-1 py-2 border border-border rounded-lg text-sm font-medium hover:bg-zinc-800 transition-colors flex items-center justify-center gap-2"
                   >
                     {selectedDonor.available ? <ToggleLeft className="w-4 h-4" /> : <ToggleRight className="w-4 h-4" />}

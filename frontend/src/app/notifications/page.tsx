@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Navbar from "@/components/Navbar";
 import { useAppContext } from "@/lib/context";
+import { useToast } from "@/components/Toast";
 import { NotificationType } from "@/lib/types";
 import {
   AlertCircle,
@@ -49,6 +50,7 @@ export default function NotificationsPage() {
     dismissNotification,
     clearAllNotifications,
   } = useAppContext();
+  const { toast } = useToast();
 
   const [filterType, setFilterType] = useState("All");
   const [filterRead, setFilterRead] = useState<"All" | "Unread" | "Read">("All");
@@ -86,7 +88,7 @@ export default function NotificationsPage() {
           <div className="flex gap-2">
             {unreadCount > 0 && (
               <button
-                onClick={markAllRead}
+                onClick={() => { markAllRead(); toast("success", "All Read", "All notifications marked as read."); }}
                 className="px-3 py-2 rounded-lg bg-panel border border-border text-sm font-medium hover:bg-zinc-800 transition-colors flex items-center gap-2"
               >
                 <CheckCheck className="w-4 h-4" /> Mark All Read
@@ -94,7 +96,7 @@ export default function NotificationsPage() {
             )}
             {notifications.length > 0 && (
               <button
-                onClick={clearAllNotifications}
+                onClick={() => { clearAllNotifications(); toast("success", "Cleared", "All notifications have been cleared."); }}
                 className="px-3 py-2 rounded-lg bg-red-600/10 border border-red-500/30 text-red-500 text-sm font-medium hover:bg-red-600/20 transition-colors flex items-center gap-2"
               >
                 <Trash2 className="w-4 h-4" /> Clear All
@@ -163,7 +165,7 @@ export default function NotificationsPage() {
                   <div className="flex flex-col gap-1 shrink-0">
                     {!n.read && (
                       <button
-                        onClick={() => markNotificationRead(n.id)}
+                        onClick={() => { markNotificationRead(n.id); toast("info", "Marked Read", n.title); }}
                         className="p-2 text-zinc-500 hover:text-emerald-500 hover:bg-emerald-500/10 rounded-lg transition-colors"
                         title="Mark as read"
                       >
@@ -171,7 +173,7 @@ export default function NotificationsPage() {
                       </button>
                     )}
                     <button
-                      onClick={() => dismissNotification(n.id)}
+                      onClick={() => { dismissNotification(n.id); toast("info", "Dismissed", n.title); }}
                       className="p-2 text-zinc-500 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors"
                       title="Dismiss"
                     >
