@@ -184,47 +184,35 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // ── Inventory ──
   const addInventoryItem = useCallback(
     async (item: Omit<BloodInventoryItem, "id">) => {
-      try {
-        const res = await inventoryApi.create(item as Record<string, unknown>);
-        const newItem = res.data;
-        newItem.lastUpdated =
-          typeof newItem.lastUpdated === "string"
-            ? newItem.lastUpdated
-            : new Date(newItem.lastUpdated).toISOString().slice(0, 16).replace("T", " ");
-        setInventory((prev) => [...prev, newItem]);
-      } catch {
-        // silently fail
-      }
+      const res = await inventoryApi.create(item as Record<string, unknown>);
+      const newItem = res.data;
+      newItem.lastUpdated =
+        typeof newItem.lastUpdated === "string"
+          ? newItem.lastUpdated
+          : new Date(newItem.lastUpdated).toISOString().slice(0, 16).replace("T", " ");
+      setInventory((prev) => [...prev, newItem]);
     },
     []
   );
 
   const updateInventoryItem = useCallback(
     async (id: string, updates: Partial<BloodInventoryItem>) => {
-      try {
-        const res = await inventoryApi.update(id, updates as Record<string, unknown>);
-        const updated = res.data;
-        updated.lastUpdated =
-          typeof updated.lastUpdated === "string"
-            ? updated.lastUpdated
-            : new Date(updated.lastUpdated).toISOString().slice(0, 16).replace("T", " ");
-        setInventory((prev) =>
-          prev.map((item) => (item.id === id ? updated : item))
-        );
-      } catch {
-        // silently fail
-      }
+      const res = await inventoryApi.update(id, updates as Record<string, unknown>);
+      const updated = res.data;
+      updated.lastUpdated =
+        typeof updated.lastUpdated === "string"
+          ? updated.lastUpdated
+          : new Date(updated.lastUpdated).toISOString().slice(0, 16).replace("T", " ");
+      setInventory((prev) =>
+        prev.map((item) => (item.id === id ? updated : item))
+      );
     },
     []
   );
 
   const deleteInventoryItem = useCallback(async (id: string) => {
-    try {
-      await inventoryApi.remove(id);
-      setInventory((prev) => prev.filter((item) => item.id !== id));
-    } catch {
-      // silently fail
-    }
+    await inventoryApi.remove(id);
+    setInventory((prev) => prev.filter((item) => item.id !== id));
   }, []);
 
   // ── Donors ──
