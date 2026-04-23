@@ -92,7 +92,7 @@ The frontend starts on `http://localhost:3000`.
 
 ## 📸 Screenshots
 
-> **Add your screenshots to the `screenshots/` folder and update the paths below.**
+> 
 
 | Dashboard | Blood Inventory |
 |---|---|
