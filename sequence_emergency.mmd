@@ -1,0 +1,18 @@
+%%{init: {'theme': 'dark', 'themeVariables': { 'primaryColor': '#e11d48', 'edgeLabelBackground':'#18181b', 'tertiaryColor': '#27272a' }}}%%
+sequenceDiagram
+    autonumber
+    participant H as Hospital Staff
+    participant S as System (Backend)
+    participant E as Compatibility Engine
+    participant D as Donor (User)
+
+    H->>S: Create Emergency Request (Type O-, 6 Units)
+    S->>S: Validate Inventory & Urgency
+    S->>E: Trigger Matching Algorithm
+    E->>E: Filter eligible donors by BloodType
+    E->>E: Rank by Distance & Reliability
+    E-->>S: List of Top Matches
+    S->>D: Push Notification (Emergency Alert)
+    D->>S: View Details & Accept
+    S->>H: Update Request Status (Matched)
+    S->>D: Provide GPS/Hospital Directions

@@ -33,19 +33,13 @@ export default function ProfilePage() {
 
   if (!isAuthenticated || !currentUser) return null;
 
-  function handleSave(e: React.FormEvent) {
+  async function handleSave(e: React.FormEvent) {
     e.preventDefault();
-    updateProfile({
+    await updateProfile({
       name: formName,
       email: formEmail,
       phone: formPhone,
       hospital: formHospital,
-      avatar: formName
-        .split(" ")
-        .map((n) => n[0])
-        .join("")
-        .toUpperCase()
-        .slice(0, 2),
     });
     setEditing(false);
     setSaved(true);
