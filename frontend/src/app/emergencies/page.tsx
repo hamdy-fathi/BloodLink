@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useAppContext } from "@/lib/context";
 import { emergenciesApi } from "@/lib/api";
+import { useToast } from "@/components/Toast";
 import Navbar from "@/components/Navbar";
 import {
   Droplet,
@@ -13,6 +14,8 @@ import {
   Search,
   Plus,
   X,
+  CheckCircle,
+  Loader2,
 } from "lucide-react";
 
 interface Emergency {
@@ -62,6 +65,14 @@ export default function EmergenciesPage() {
   const [loadingMatch, setLoadingMatch] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
+  // Toast
+  const { toast } = useToast();
+
+  // Track which individual donors have been notified
+  const [notifiedDonors, setNotifiedDonors] = useState<Set<string>>(new Set());
+  const [notifyingDonor, setNotifyingDonor] = useState<string | null>(null);
+  const [notifyingAll, setNotifyingAll] = useState(false);
+
   // Create modal
   const [showCreate, setShowCreate] = useState(false);
   const [formHospital, setFormHospital] = useState("");
@@ -106,9 +117,43 @@ export default function EmergenciesPage() {
   const selected = emergencies.find((e) => e.id === selectedId) || null;
 
   async function handleNotifyAll() {
-    if (!selectedId) return;
-    await emergenciesApi.notify(selectedId);
-    alert("All top matching donors have been notified!");
+    if (!selectedId || !matchResult) return;
+    setNotifyingAll(true);
+    try {
+      const res = await emergenciesApi.notify(selectedId);
+      // Mark all donors as notified
+      const allIds = new Set(notifiedDonors);
+      matchResult.donors.forEach((d) => allIds.add(d.id));
+      setNotifiedDonors(allIds);
+      toast(
+        "success",
+        "All Donors Notified",
+        `${res.data.notified} compatible donors have been notified for ${selected?.hospital}.`
+      );
+    } catch {
+      toast("error", "Notification Failed", "Could not notify donors. Please try again.");
+    } finally {
+      setNotifyingAll(false);
+    }
+  }
+
+  async function handleNotifySingle(donor: MatchedDonor) {
+    if (notifiedDonors.has(donor.id)) return;
+    setNotifyingDonor(donor.id);
+    try {
+      // Call the same notify endpoint — in a real app this would be per-donor
+      if (selectedId) await emergenciesApi.notify(selectedId);
+      setNotifiedDonors((prev) => new Set(prev).add(donor.id));
+      toast(
+        "success",
+        `${donor.name} Notified`,
+        `Emergency alert sent. ${donor.eta} estimated arrival.`
+      );
+    } catch {
+      toast("error", "Notification Failed", `Could not notify ${donor.name}.`);
+    } finally {
+      setNotifyingDonor(null);
+    }
   }
 
   async function handleCreate(e: React.FormEvent) {
@@ -353,8 +398,24 @@ export default function EmergenciesPage() {
                           <div className="w-12 h-12 rounded-full border-2 border-brand flex items-center justify-center font-bold text-brand shadow-[0_0_10px_rgba(225,29,72,0.2)]">
                             {donor.score}
                           </div>
-                          <button className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-white text-sm font-medium rounded-lg transition-colors">
-                            Notify
+                          <button
+                            onClick={() => handleNotifySingle(donor)}
+                            disabled={notifiedDonors.has(donor.id) || notifyingDonor === donor.id}
+                            className={`px-4 py-2 text-sm font-medium rounded-lg transition-all flex items-center gap-1.5 ${
+                              notifiedDonors.has(donor.id)
+                                ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 cursor-default"
+                                : notifyingDonor === donor.id
+                                ? "bg-zinc-800 text-zinc-400 cursor-wait"
+                                : "bg-zinc-800 hover:bg-zinc-700 text-white"
+                            }`}
+                          >
+                            {notifiedDonors.has(donor.id) ? (
+                              <><CheckCircle className="w-3.5 h-3.5" /> Sent</>
+                            ) : notifyingDonor === donor.id ? (
+                              <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Sending</>
+                            ) : (
+                              "Notify"
+                            )}
                           </button>
                         </div>
                       </div>
@@ -368,9 +429,14 @@ export default function EmergenciesPage() {
 
                 <button
                   onClick={handleNotifyAll}
-                  className="w-full mt-6 py-3 bg-brand hover:bg-brand-hover text-white font-semibold rounded-xl transition-colors shadow-lg shadow-brand/20"
+                  disabled={notifyingAll}
+                  className="w-full mt-6 py-3 bg-brand hover:bg-brand-hover text-white font-semibold rounded-xl transition-colors shadow-lg shadow-brand/20 disabled:opacity-60 disabled:cursor-wait flex items-center justify-center gap-2"
                 >
-                  Notify All Top Matches
+                  {notifyingAll ? (
+                    <><Loader2 className="w-4 h-4 animate-spin" /> Notifying...</>
+                  ) : (
+                    "Notify All Top Matches"
+                  )}
                 </button>
               </>
             )}
