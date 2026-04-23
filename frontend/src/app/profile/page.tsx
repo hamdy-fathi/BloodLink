@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Navbar from "@/components/Navbar";
 import { useAppContext } from "@/lib/context";
+import { useToast } from "@/components/Toast";
 import {
   Mail,
   Phone,
@@ -33,21 +34,29 @@ export default function ProfilePage() {
 
   if (!isAuthenticated || !currentUser) return null;
 
+  const { toast } = useToast();
+
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
-    await updateProfile({
-      name: formName,
-      email: formEmail,
-      phone: formPhone,
-      hospital: formHospital,
-    });
-    setEditing(false);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+    try {
+      await updateProfile({
+        name: formName,
+        email: formEmail,
+        phone: formPhone,
+        hospital: formHospital,
+      });
+      setEditing(false);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+      toast("success", "Profile Updated", "Your profile has been saved.");
+    } catch {
+      toast("error", "Update Failed", "Could not save your profile.");
+    }
   }
 
   function handleLogout() {
     logout();
+    toast("info", "Signed Out", "You have been logged out.");
     router.push("/login");
   }
 

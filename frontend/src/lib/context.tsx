@@ -218,48 +218,32 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // ── Donors ──
   const addDonor = useCallback(
     async (donor: Omit<Donor, "id">) => {
-      try {
-        const res = await donorsApi.create(donor as Record<string, unknown>);
-        setDonors((prev) => [...prev, res.data]);
-      } catch {
-        // silently fail
-      }
+      const res = await donorsApi.create(donor as Record<string, unknown>);
+      setDonors((prev) => [...prev, res.data]);
     },
     []
   );
 
   const updateDonor = useCallback(
     async (id: string, updates: Partial<Donor>) => {
-      try {
-        const res = await donorsApi.update(id, updates as Record<string, unknown>);
-        setDonors((prev) =>
-          prev.map((d) => (d.id === id ? res.data : d))
-        );
-      } catch {
-        // silently fail
-      }
+      const res = await donorsApi.update(id, updates as Record<string, unknown>);
+      setDonors((prev) =>
+        prev.map((d) => (d.id === id ? res.data : d))
+      );
     },
     []
   );
 
   const deleteDonor = useCallback(async (id: string) => {
-    try {
-      await donorsApi.remove(id);
-      setDonors((prev) => prev.filter((d) => d.id !== id));
-    } catch {
-      // silently fail
-    }
+    await donorsApi.remove(id);
+    setDonors((prev) => prev.filter((d) => d.id !== id));
   }, []);
 
   const toggleDonorAvailability = useCallback(async (id: string) => {
-    try {
-      const res = await donorsApi.toggleAvailability(id);
-      setDonors((prev) =>
-        prev.map((d) => (d.id === id ? res.data : d))
-      );
-    } catch {
-      // silently fail
-    }
+    const res = await donorsApi.toggleAvailability(id);
+    setDonors((prev) =>
+      prev.map((d) => (d.id === id ? res.data : d))
+    );
   }, []);
 
   return (
