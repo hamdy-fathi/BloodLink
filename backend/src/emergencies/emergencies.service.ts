@@ -6,6 +6,7 @@ import { DonorsService } from '../donors/donors.service.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
 import { NotificationType } from '../entities/notification.entity.js';
 import { CreateEmergencyDto } from './dto/create-emergency.dto.js';
+import { UpdateEmergencyDto } from './dto/update-emergency.dto.js';
 
 @Injectable()
 export class EmergenciesService {
@@ -97,6 +98,23 @@ export class EmergenciesService {
       notified: matchResult.donors.length,
       emergency,
     };
+  }
+
+  async update(id: string, dto: UpdateEmergencyDto) {
+    const emergency = await this.findOne(id);
+    if (dto.hospital !== undefined) emergency.hospital = dto.hospital;
+    if (dto.department !== undefined) emergency.department = dto.department;
+    if (dto.requiredType !== undefined) emergency.requiredType = dto.requiredType;
+    if (dto.unitsNeeded !== undefined) emergency.unitsNeeded = dto.unitsNeeded;
+    if (dto.urgency !== undefined) emergency.urgency = dto.urgency as UrgencyLevel;
+    if (dto.distance !== undefined) emergency.distance = dto.distance;
+    return this.emergencyRepo.save(emergency);
+  }
+
+  async remove(id: string) {
+    const emergency = await this.findOne(id);
+    await this.emergencyRepo.remove(emergency);
+    return { deleted: true };
   }
 
   async resolve(id: string) {

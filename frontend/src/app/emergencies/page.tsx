@@ -16,6 +16,9 @@ import {
   X,
   CheckCircle,
   Loader2,
+  Pencil,
+  Trash2,
+  MoreVertical,
 } from "lucide-react";
 
 interface Emergency {
@@ -73,13 +76,18 @@ export default function EmergenciesPage() {
   const [notifyingDonor, setNotifyingDonor] = useState<string | null>(null);
   const [notifyingAll, setNotifyingAll] = useState(false);
 
-  // Create modal
-  const [showCreate, setShowCreate] = useState(false);
+  // Create/Edit modal
+  const [showModal, setShowModal] = useState(false);
+  const [editingEmergency, setEditingEmergency] = useState<Emergency | null>(null);
   const [formHospital, setFormHospital] = useState("");
   const [formDept, setFormDept] = useState("");
   const [formType, setFormType] = useState("O-");
   const [formUnits, setFormUnits] = useState("");
   const [formUrgency, setFormUrgency] = useState("Critical");
+
+  // Actions
+  const [openActionId, setOpenActionId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -156,27 +164,75 @@ export default function EmergenciesPage() {
     }
   }
 
-  async function handleCreate(e: React.FormEvent) {
+  function openCreateModal() {
+    setEditingEmergency(null);
+    setFormHospital("");
+    setFormDept("");
+    setFormType("O-");
+    setFormUnits("");
+    setFormUrgency("Critical");
+    setShowModal(true);
+  }
+
+  function openEditModal(emergency: Emergency) {
+    setEditingEmergency(emergency);
+    setFormHospital(emergency.hospital);
+    setFormDept(emergency.department);
+    setFormType(emergency.requiredType);
+    setFormUnits(String(emergency.unitsNeeded));
+    setFormUrgency(emergency.urgency);
+    setShowModal(true);
+    setOpenActionId(null);
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     try {
-      const res = await emergenciesApi.create({
-        hospital: formHospital,
-        department: formDept,
-        requiredType: formType,
-        unitsNeeded: parseInt(formUnits) || 1,
-        urgency: formUrgency,
-      });
-      setEmergencies((prev) => [res.data, ...prev]);
-      setSelectedId(res.data.id);
-      setShowCreate(false);
-      setFormHospital("");
-      setFormDept("");
-      setFormType("O-");
-      setFormUnits("");
-      setFormUrgency("Critical");
+      if (editingEmergency) {
+        const res = await emergenciesApi.update(editingEmergency.id, {
+          hospital: formHospital,
+          department: formDept,
+          requiredType: formType,
+          unitsNeeded: parseInt(formUnits) || 1,
+          urgency: formUrgency,
+        });
+        setEmergencies((prev) =>
+          prev.map((em) => (em.id === editingEmergency.id ? res.data : em))
+        );
+        toast("success", "Emergency Updated", `${formHospital} request updated.`);
+      } else {
+        const res = await emergenciesApi.create({
+          hospital: formHospital,
+          department: formDept,
+          requiredType: formType,
+          unitsNeeded: parseInt(formUnits) || 1,
+          urgency: formUrgency,
+        });
+        setEmergencies((prev) => [res.data, ...prev]);
+        setSelectedId(res.data.id);
+        toast("success", "Emergency Created", `${formHospital} — ${formType} request added.`);
+      }
+      setShowModal(false);
     } catch {
-      // silently fail
+      toast("error", "Operation Failed", "Could not save emergency request.");
     }
+  }
+
+  async function handleDelete() {
+    if (!deletingId) return;
+    const em = emergencies.find((e) => e.id === deletingId);
+    try {
+      await emergenciesApi.remove(deletingId);
+      setEmergencies((prev) => prev.filter((e) => e.id !== deletingId));
+      if (selectedId === deletingId) {
+        setSelectedId(null);
+        setMatchResult(null);
+      }
+      toast("success", "Emergency Removed", `${em?.hospital ?? "Request"} has been deleted.`);
+    } catch {
+      toast("error", "Delete Failed", "Could not remove the emergency.");
+    }
+    setDeletingId(null);
   }
 
   return (
@@ -195,7 +251,7 @@ export default function EmergenciesPage() {
                 {emergencies.length}
               </span>
               <button
-                onClick={() => setShowCreate(true)}
+                onClick={openCreateModal}
                 className="p-2 rounded-lg bg-brand text-white hover:bg-brand-hover transition-colors"
               >
                 <Plus className="w-4 h-4" />
@@ -265,6 +321,30 @@ export default function EmergenciesPage() {
                     <span className="text-white">
                       {request.unitsNeeded} Units
                     </span>
+                  </div>
+                  <div className="relative">
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setOpenActionId(openActionId === request.id ? null : request.id); }}
+                      className="text-zinc-500 hover:text-white transition-colors p-1"
+                    >
+                      <MoreVertical className="w-4 h-4" />
+                    </button>
+                    {openActionId === request.id && (
+                      <div className="absolute right-0 bottom-7 w-36 bg-panel border border-border rounded-lg shadow-xl z-20" onClick={(e) => e.stopPropagation()}>
+                        <button
+                          onClick={() => openEditModal(request)}
+                          className="flex items-center gap-2 w-full text-left px-4 py-2.5 text-sm text-zinc-300 hover:bg-zinc-800 transition-colors rounded-t-lg"
+                        >
+                          <Pencil className="w-3.5 h-3.5" /> Edit
+                        </button>
+                        <button
+                          onClick={() => { setDeletingId(request.id); setOpenActionId(null); }}
+                          className="flex items-center gap-2 w-full text-left px-4 py-2.5 text-sm text-red-500 hover:bg-zinc-800 transition-colors rounded-b-lg"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" /> Delete
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -444,24 +524,24 @@ export default function EmergenciesPage() {
         </div>
       </main>
 
-      {/* Create Emergency Modal */}
-      {showCreate && (
+      {/* Create/Edit Emergency Modal */}
+      {showModal && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
-          onClick={() => setShowCreate(false)}
+          onClick={() => setShowModal(false)}
         >
           <div
             className="bg-panel border border-border rounded-2xl w-full max-w-md mx-4 p-6 shadow-2xl relative"
             onClick={(e) => e.stopPropagation()}
           >
             <button
-              onClick={() => setShowCreate(false)}
+              onClick={() => setShowModal(false)}
               className="absolute top-4 right-4 text-zinc-500 hover:text-white transition-colors"
             >
               <X className="w-5 h-5" />
             </button>
-            <h2 className="text-xl font-bold mb-6">New Emergency Request</h2>
-            <form onSubmit={handleCreate} className="space-y-4">
+            <h2 className="text-xl font-bold mb-6">{editingEmergency ? "Edit Emergency" : "New Emergency Request"}</h2>
+            <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-zinc-300 mb-1">
                   Hospital
@@ -542,9 +622,23 @@ export default function EmergenciesPage() {
                 type="submit"
                 className="w-full py-2.5 bg-brand text-white rounded-lg text-sm font-semibold hover:bg-brand-hover transition-colors shadow-[0_0_15px_rgba(225,29,72,0.2)] mt-2"
               >
-                Create Emergency Request
+                {editingEmergency ? "Save Changes" : "Create Emergency Request"}
               </button>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deletingId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setDeletingId(null)}>
+          <div className="bg-panel border border-border rounded-2xl w-full max-w-sm mx-4 p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <h2 className="text-lg font-bold mb-2">Remove Emergency</h2>
+            <p className="text-sm text-zinc-400 mb-6">Are you sure you want to delete this emergency request? This cannot be undone.</p>
+            <div className="flex gap-3">
+              <button onClick={() => setDeletingId(null)} className="flex-1 py-2 border border-border rounded-lg text-sm font-medium hover:bg-zinc-800 transition-colors">Cancel</button>
+              <button onClick={handleDelete} className="flex-1 py-2 bg-red-600 text-white rounded-lg text-sm font-semibold hover:bg-red-700 transition-colors">Delete</button>
+            </div>
           </div>
         </div>
       )}

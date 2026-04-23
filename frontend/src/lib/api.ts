@@ -68,6 +68,9 @@ export const emergenciesApi = {
   getAll: () => api.get("/emergencies"),
   getOne: (id: string) => api.get(`/emergencies/${id}`),
   create: (data: Record<string, unknown>) => api.post("/emergencies", data),
+  update: (id: string, data: Record<string, unknown>) =>
+    api.patch(`/emergencies/${id}`, data),
+  remove: (id: string) => api.delete(`/emergencies/${id}`),
   match: (id: string) => api.get(`/emergencies/${id}/match`),
   notify: (id: string) => api.post(`/emergencies/${id}/notify`),
   resolve: (id: string) => api.patch(`/emergencies/${id}/resolve`),
