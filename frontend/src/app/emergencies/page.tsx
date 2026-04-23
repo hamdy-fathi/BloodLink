@@ -42,12 +42,18 @@ interface MatchedDonor {
   score: number;
   city: string;
   phone: string;
+  isExactMatch: boolean;
+  daysSinceLastDonation: number;
+  recencyPenalty: number;
 }
 
 interface MatchResult {
   emergency: Emergency;
+  algorithm: string;
+  weights: { Wr: number; Wp: number; We: number };
   totalCompatible: number;
   highReliability: number;
+  exactMatches: number;
   donors: MatchedDonor[];
 }
 
@@ -387,13 +393,13 @@ export default function EmergenciesPage() {
                       <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-brand"></span>
                     </span>
                     <span className="text-xs font-bold text-brand">
-                      Algorithm Active
+                      {matchResult?.algorithm ?? "Engine Active"}
                     </span>
                   </div>
                 </div>
 
                 {/* Match Stats */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8 relative z-10">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4 relative z-10">
                   <div className="bg-background border border-border rounded-xl p-4">
                     <div className="text-xs text-zinc-400 mb-1">
                       Required Type
@@ -401,12 +407,6 @@ export default function EmergenciesPage() {
                     <div className="text-xl font-bold text-brand">
                       {selected.requiredType}
                     </div>
-                  </div>
-                  <div className="bg-background border border-border rounded-xl p-4">
-                    <div className="text-xs text-zinc-400 mb-1">
-                      Distance Radius
-                    </div>
-                    <div className="text-xl font-bold text-white">15 km</div>
                   </div>
                   <div className="bg-background border border-border rounded-xl p-4">
                     <div className="text-xs text-zinc-400 mb-1">
@@ -418,13 +418,37 @@ export default function EmergenciesPage() {
                   </div>
                   <div className="bg-background border border-border rounded-xl p-4">
                     <div className="text-xs text-zinc-400 mb-1">
-                      High Reliability
+                      Exact Matches
                     </div>
                     <div className="text-xl font-bold text-emerald-500">
-                      {loadingMatch ? "..." : `${matchResult?.highReliability ?? 0} match`}
+                      {loadingMatch ? "..." : `${matchResult?.exactMatches ?? 0}`}
+                    </div>
+                  </div>
+                  <div className="bg-background border border-border rounded-xl p-4">
+                    <div className="text-xs text-zinc-400 mb-1">
+                      High Reliability
+                    </div>
+                    <div className="text-xl font-bold text-blue-500">
+                      {loadingMatch ? "..." : `${matchResult?.highReliability ?? 0}`}
                     </div>
                   </div>
                 </div>
+
+                {/* Weight Profile */}
+                {matchResult?.weights && (
+                  <div className="flex items-center gap-3 mb-8 px-1">
+                    <span className="text-xs text-zinc-500">Weights:</span>
+                    <span className="text-xs bg-zinc-800 border border-zinc-700 rounded px-2 py-0.5 text-zinc-300">
+                      Reliability {Math.round(matchResult.weights.Wr * 100)}%
+                    </span>
+                    <span className="text-xs bg-zinc-800 border border-zinc-700 rounded px-2 py-0.5 text-zinc-300">
+                      Proximity {Math.round(matchResult.weights.Wp * 100)}%
+                    </span>
+                    <span className="text-xs bg-zinc-800 border border-zinc-700 rounded px-2 py-0.5 text-zinc-300">
+                      Exact Match {Math.round(matchResult.weights.We * 100)}%
+                    </span>
+                  </div>
+                )}
 
                 {/* Recommended Matches */}
                 <h3 className="text-lg font-semibold mb-4 border-b border-border pb-2 text-zinc-200">
@@ -443,7 +467,11 @@ export default function EmergenciesPage() {
                         className="flex items-center justify-between p-4 bg-background border border-border rounded-xl hover:border-zinc-600 transition-colors"
                       >
                         <div className="flex items-center gap-4">
-                          <div className="w-10 h-10 rounded-full bg-zinc-800 flex items-center justify-center font-bold text-sm">
+                          <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm ${
+                            donor.isExactMatch
+                              ? "bg-emerald-500/15 border border-emerald-500/30 text-emerald-400"
+                              : "bg-zinc-800 text-zinc-300"
+                          }`}>
                             {donor.name
                               .split(" ")
                               .map((n) => n[0])
@@ -451,17 +479,26 @@ export default function EmergenciesPage() {
                               .toUpperCase()}
                           </div>
                           <div>
-                            <h4 className="font-semibold text-white">
+                            <h4 className="font-semibold text-white flex items-center gap-2">
                               {donor.name}
+                              {donor.isExactMatch && (
+                                <span className="text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded px-1.5 py-0.5">EXACT</span>
+                              )}
                             </h4>
                             <p className="text-xs text-zinc-400 flex items-center gap-2 mt-1">
                               <span className="flex items-center gap-1">
-                                <MapPin className="w-3 h-3" /> {donor.distance}
+                                <MapPin className="w-3 h-3" /> {donor.distance} • {donor.city}
                               </span>
                               <span>•</span>
-                              <span className="text-emerald-500 font-medium">
-                                {donor.reliability}% Reliability
+                              <span className={`font-medium ${donor.reliability >= 90 ? "text-emerald-500" : donor.reliability >= 70 ? "text-amber-500" : "text-red-400"}`}>
+                                {donor.reliability}%
                               </span>
+                              {donor.recencyPenalty > 0 && (
+                                <>
+                                  <span>•</span>
+                                  <span className="text-amber-500 text-[10px]">⚠ donated {donor.daysSinceLastDonation}d ago</span>
+                                </>
+                              )}
                             </p>
                           </div>
                         </div>
