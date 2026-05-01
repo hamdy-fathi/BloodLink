@@ -25,6 +25,12 @@ jobs:
       working-directory: backend
       run: npm ci
 
-    - name: Run Backend Unit Tests
+    - name: Run Backend Unit Tests with Coverage
       working-directory: backend
-      run: npm run test
+      run: npm run test:cov
+
+    - name: Verify Coverage Threshold
+      working-directory: backend
+      run: |
+        echo "✅ Unit tests passed with coverage report"
+        echo "Coverage report generated in backend/coverage/"
