@@ -19,7 +19,8 @@
   <a href="#-matching-engine-v2">Matching Engine</a> •
   <a href="#-tech-stack">Tech Stack</a> •
   <a href="#-api-reference">API Reference</a> •
-  <a href="#-project-structure">Project Structure</a>
+  <a href="#-project-structure">Project Structure</a> •
+  <a href="#-testing--quality-assurance-phase-6">Testing</a>
 </p>
 
 ---
@@ -406,6 +407,12 @@ BloodLink/
 │   │       └── types.ts              # TypeScript type definitions
 │   └── package.json
 │
+├── testing/                          # QA & Testing artifacts
+│   ├── Bug_Report_Template.pdf       # Reusable bug report template
+│   ├── Sample_Bug_Reports.pdf        # 8 sample bug reports
+│   ├── bug_report_template_only.md   # Template markdown source
+│   └── sample_bug_reports.md         # Sample bugs markdown source
+│
 ├── screenshots/                      # UI screenshots (placeholder)
 ├── class_diagram.md                  # UML class diagram documentation
 ├── sequence_diagrams.md              # Sequence diagram documentation
@@ -559,9 +566,72 @@ Each feature is developed on a separate branch:
 
 ---
 
+## 🧪 Testing & Quality Assurance (Phase 6)
+
+### Bug Report Template
+
+A standardized bug report template is used across the project to ensure consistent, traceable defect documentation. Each report includes:
+
+| Field | Description |
+|-------|-------------|
+| **Bug ID** | Unique identifier (`BL-BUG-XXX`) |
+| **Severity** | 🔴 Critical · 🟠 High · 🟡 Medium · 🟢 Low |
+| **Priority** | P1 (Immediate) · P2 (Next Sprint) · P3 (Backlog) · P4 (Nice-to-have) |
+| **Status** | New → Open → In Progress → Fixed → Verified → Closed |
+| **Environment** | OS, Browser, Screen size, Backend version |
+| **Evidence** | Screenshots, console logs, HTTP traces |
+
+> 📄 **Full template PDF:** [`testing/Bug_Report_Template.pdf`](testing/Bug_Report_Template.pdf)
+
+### Sample Bug Reports
+
+8 sample bugs were identified through code inspection and manual testing, covering all major system modules:
+
+| Bug ID | Title | Module | Severity | Priority |
+|--------|-------|--------|----------|----------|
+| BL-BUG-001 | Login accepts empty password via Enter key | Authentication | 🔴 Critical | P1 |
+| BL-BUG-002 | Inventory allows adding negative blood units | Inventory | 🟠 High | P1 |
+| BL-BUG-003 | Matching engine returns 0 donors for AB- | Emergency Matching | 🔴 Critical | P1 |
+| BL-BUG-004 | "Notify All" button remains disabled (Safari) | Emergencies | 🟡 Medium | P2 |
+| BL-BUG-005 | `timeAgo()` shows negative values for future dates | Dashboard | 🟢 Low | P3 |
+| BL-BUG-006 | Delete modal closes on body click | Inventory | 🟡 Medium | P3 |
+| BL-BUG-007 | Notification response resets on page refresh | Notifications | 🟠 High | P2 |
+| BL-BUG-008 | Dashboard inventory bar has hardcoded scale | Dashboard | 🟢 Low | P4 |
+
+> 📄 **Full bug reports PDF:** [`testing/Sample_Bug_Reports.pdf`](testing/Sample_Bug_Reports.pdf)
+
+### Severity & Priority Distribution
+
+| Severity | Count | Bug IDs |
+|----------|-------|---------|
+| 🔴 Critical (P1) | 2 | BL-BUG-001, BL-BUG-003 |
+| 🟠 High (P1–P2) | 2 | BL-BUG-002, BL-BUG-007 |
+| 🟡 Medium (P2–P3) | 2 | BL-BUG-004, BL-BUG-006 |
+| 🟢 Low (P3–P4) | 2 | BL-BUG-005, BL-BUG-008 |
+
+### Module Coverage
+
+| Module | Bugs Filed |
+|--------|-----------|
+| Authentication | 1 |
+| Blood Inventory | 2 |
+| Emergency Matching | 1 |
+| Notifications / Emergencies | 2 |
+| Dashboard | 2 |
+
+### Testing Artifacts
+
+```
+testing/
+├── Test_Plan.pdf                   # Comprehensive software test plan (PDF)
+├── Bug_Report_Template.pdf         # Reusable bug report template (PDF)
+├── Sample_Bug_Reports.pdf          # 8 sample bug reports (PDF) 
+```
+
+---
+
 ## 📄 License
 
 This project is developed as part of a Biomedical Engineering academic project.
 
 ---
-
