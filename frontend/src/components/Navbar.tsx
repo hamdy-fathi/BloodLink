@@ -21,11 +21,12 @@ import {
 } from "lucide-react";
 import { NotificationType } from "@/lib/types";
 
-const navLinks = [
-  { href: "/", label: "Dashboard" },
-  { href: "/inventory", label: "Inventory" },
-  { href: "/donors", label: "Donors" },
-  { href: "/emergencies", label: "Emergencies" },
+const allNavLinks = [
+  { href: "/", label: "Dashboard", roles: ["admin", "staff", "manager", "donor"] },
+  { href: "/inventory", label: "Inventory", roles: ["admin", "staff", "manager"] },
+  { href: "/donors", label: "Donors", roles: ["admin", "staff", "manager"] },
+  { href: "/emergencies", label: "Emergencies", roles: ["admin", "staff", "manager"] },
+  { href: "/notifications", label: "My Requests", roles: ["donor"] },
 ];
 
 function notificationIcon(type: NotificationType) {
@@ -113,7 +114,9 @@ export default function Navbar() {
         </Link>
 
         <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-zinc-400">
-          {navLinks.map((link) => (
+          {allNavLinks
+            .filter((link) => link.roles.includes(currentUser?.role ?? "staff"))
+            .map((link) => (
             <Link
               key={link.href}
               href={link.href}

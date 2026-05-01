@@ -8,7 +8,7 @@ import React, {
   useEffect,
   ReactNode,
 } from "react";
-import { BloodInventoryItem, Donor, User, AppNotification } from "./types";
+import { BloodInventoryItem, Donor, User, AppNotification, DonorResponse } from "./types";
 import {
   authApi,
   usersApi,
@@ -30,6 +30,7 @@ interface AppContextType {
   unreadCount: number;
   markNotificationRead: (id: string) => void;
   markAllRead: () => void;
+  respondToNotification: (id: string, response: DonorResponse) => Promise<void>;
   dismissNotification: (id: string) => void;
   clearAllNotifications: () => void;
 
@@ -176,6 +177,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setNotifications((prev) => prev.filter((n) => n.id !== id));
   }, []);
 
+  const respondToNotification = useCallback(
+    async (id: string, response: DonorResponse) => {
+      await notificationsApi.respond(id, response as "accepted" | "refused");
+      setNotifications((prev) =>
+        prev.map((n) =>
+          n.id === id ? { ...n, response, read: true } : n
+        )
+      );
+    },
+    []
+  );
+
   const clearAllNotifications = useCallback(() => {
     notificationsApi.clearAll().catch(() => {});
     setNotifications([]);
@@ -258,6 +271,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         unreadCount,
         markNotificationRead,
         markAllRead,
+        respondToNotification,
         dismissNotification,
         clearAllNotifications,
         inventory,

@@ -15,6 +15,12 @@ export enum NotificationType {
   TRANSFER = 'transfer',
 }
 
+export enum DonorResponse {
+  PENDING = 'pending',
+  ACCEPTED = 'accepted',
+  REFUSED = 'refused',
+}
+
 @Entity('notifications')
 export class Notification {
   @PrimaryGeneratedColumn('uuid')
@@ -35,6 +41,9 @@ export class Notification {
   @Column({ type: 'boolean', default: false })
   read!: boolean;
 
+  @Column({ type: 'enum', enum: DonorResponse, default: DonorResponse.PENDING })
+  response!: DonorResponse;
+
   @Column({ name: 'user_id' })
   userId!: string;
 
@@ -42,3 +51,4 @@ export class Notification {
   @JoinColumn({ name: 'user_id' })
   user!: User;
 }
+

@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import Navbar from "@/components/Navbar";
 import { useAppContext } from "@/lib/context";
 import { BloodInventoryItem } from "@/lib/types";
@@ -28,8 +29,15 @@ function getStatusFromUnits(units: number): BloodInventoryItem["status"] {
 }
 
 export default function InventoryPage() {
-  const { inventory, addInventoryItem, updateInventoryItem, deleteInventoryItem } = useAppContext();
+  const { inventory, addInventoryItem, updateInventoryItem, deleteInventoryItem, currentUser } = useAppContext();
   const { toast } = useToast();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (currentUser?.role === "donor") router.replace("/");
+  }, [currentUser, router]);
+
+  if (currentUser?.role === "donor") return null;
 
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("All");
