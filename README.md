@@ -550,12 +550,12 @@ Each feature is developed on a separate branch:
 | Variable | Description | Example |
 |---|---|---|
 | `PORT` | Backend server port | `3001` |
-| `DB_HOST` | PostgreSQL host address | `51.255.93.92` |
+| `DB_HOST` | PostgreSQL host address | `localhost` |
 | `DB_PORT` | PostgreSQL port | `5432` |
 | `DB_USERNAME` | Database username | `BloodLink_user` |
-| `DB_PASSWORD` | Database password | `password_123#` |
+| `DB_PASSWORD` | Database password | `*******` |
 | `DB_NAME` | Database name | `BloodLink` |
-| `JWT_SECRET` | Secret key for JWT signing | `bloodlink_jwt_s3cr3t_k3y_2026` |
+| `JWT_SECRET` | Secret key for JWT signing | `*******` |
 
 ---
 
