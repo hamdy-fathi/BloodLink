@@ -1,8 +1,10 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import Navbar from "@/components/Navbar";
 import { useAppContext } from "@/lib/context";
+import { usersApi } from "@/lib/api";
 import { Donor } from "@/lib/types";
 import { useToast } from "@/components/Toast";
 import {
@@ -20,13 +22,21 @@ import {
   Heart,
   ToggleLeft,
   ToggleRight,
+  KeyRound,
 } from "lucide-react";
 
 const BLOOD_TYPES = ["O+", "O-", "A+", "A-", "B+", "B-", "AB+", "AB-"];
 
 export default function DonorsPage() {
-  const { donors, addDonor, updateDonor, deleteDonor, toggleDonorAvailability } = useAppContext();
+  const { donors, addDonor, updateDonor, deleteDonor, toggleDonorAvailability, currentUser } = useAppContext();
   const { toast } = useToast();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (currentUser?.role === "donor") router.replace("/");
+  }, [currentUser, router]);
+
+  if (currentUser?.role === "donor") return null;
 
   const [searchQuery, setSearchQuery] = useState("");
   const [filterType, setFilterType] = useState("All");
@@ -43,6 +53,8 @@ export default function DonorsPage() {
   const [formBloodType, setFormBloodType] = useState(BLOOD_TYPES[0]);
   const [formAge, setFormAge] = useState("");
   const [formCity, setFormCity] = useState("");
+  const [createAccount, setCreateAccount] = useState(false);
+  const [formPassword, setFormPassword] = useState("");
 
   // Actions
   const [openActionId, setOpenActionId] = useState<string | null>(null);
@@ -82,6 +94,8 @@ export default function DonorsPage() {
     setFormBloodType(BLOOD_TYPES[0]);
     setFormAge("");
     setFormCity("");
+    setCreateAccount(false);
+    setFormPassword("");
     setShowModal(true);
   }
 
@@ -113,6 +127,7 @@ export default function DonorsPage() {
         });
         toast("success", "Donor Updated", `${formName}'s information has been updated.`);
       } else {
+        // Create donor record
         await addDonor({
           name: formName,
           email: formEmail,
@@ -126,7 +141,24 @@ export default function DonorsPage() {
           available: true,
           eligible: true,
         });
-        toast("success", "Donor Registered", `${formName} (${formBloodType}) has been added.`);
+
+        // Also create user account if toggled
+        if (createAccount && formPassword) {
+          try {
+            await usersApi.create({
+              name: formName,
+              email: formEmail,
+              phone: formPhone,
+              password: formPassword,
+              role: "donor",
+            });
+            toast("success", "Donor Registered + Account Created", `${formName} (${formBloodType}) has been added with a login account.`);
+          } catch {
+            toast("info", "Donor Added, Account Failed", `${formName} was registered but the user account could not be created (email may already exist).`);
+          }
+        } else {
+          toast("success", "Donor Registered", `${formName} (${formBloodType}) has been added.`);
+        }
       }
       setShowModal(false);
     } catch {
@@ -437,9 +469,47 @@ export default function DonorsPage() {
                     className="w-full bg-zinc-900/50 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-brand" placeholder="Downtown" />
                 </div>
               </div>
+              {/* Create Account Toggle (only for new donors) */}
+              {!editingDonor && (
+                <div className="border border-zinc-700 rounded-lg p-4 bg-zinc-900/30">
+                  <label className="flex items-center justify-between cursor-pointer">
+                    <span className="flex items-center gap-2 text-sm font-medium text-zinc-300">
+                      <KeyRound className="w-4 h-4 text-brand" />
+                      Create Login Account
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setCreateAccount(!createAccount)}
+                      className={`relative w-10 h-5 rounded-full transition-colors ${
+                        createAccount ? "bg-brand" : "bg-zinc-700"
+                      }`}
+                    >
+                      <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform ${
+                        createAccount ? "translate-x-5" : ""
+                      }`} />
+                    </button>
+                  </label>
+                  {createAccount && (
+                    <div className="mt-3">
+                      <label className="block text-xs font-medium text-zinc-400 mb-1">Password (min 6 characters)</label>
+                      <input
+                        type="password"
+                        value={formPassword}
+                        onChange={(e) => setFormPassword(e.target.value)}
+                        required={createAccount}
+                        minLength={6}
+                        className="w-full bg-zinc-900/50 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-brand"
+                        placeholder="••••••••"
+                      />
+                      <p className="text-[11px] text-zinc-500 mt-1">Donor will use their email + this password to log in.</p>
+                    </div>
+                  )}
+                </div>
+              )}
+
               <button type="submit"
                 className="w-full py-2.5 bg-brand text-white rounded-lg text-sm font-semibold hover:bg-brand-hover transition-colors shadow-[0_0_15px_rgba(225,29,72,0.2)] mt-2">
-                {editingDonor ? "Save Changes" : "Register Donor"}
+                {editingDonor ? "Save Changes" : createAccount ? "Register Donor & Create Account" : "Register Donor"}
               </button>
             </form>
           </div>

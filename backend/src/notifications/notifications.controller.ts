@@ -4,6 +4,7 @@ import {
   Patch,
   Delete,
   Param,
+  Body,
   UseGuards,
   Req,
 } from '@nestjs/common';
@@ -30,6 +31,11 @@ export class NotificationsController {
     return this.notificationsService.markAsRead(id);
   }
 
+  @Patch(':id/respond')
+  respond(@Param('id') id: string, @Body() body: { response: 'accepted' | 'refused' }) {
+    return this.notificationsService.respond(id, body.response as any);
+  }
+
   @Delete('clear-all')
   clearAll(@Req() req: any) {
     return this.notificationsService.clearAllForUser(req.user.userId);
@@ -40,3 +46,4 @@ export class NotificationsController {
     return this.notificationsService.dismiss(id);
   }
 }
+

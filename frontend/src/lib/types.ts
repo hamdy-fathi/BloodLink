@@ -39,6 +39,8 @@ export interface User {
 
 export type NotificationType = "emergency" | "shortage" | "donation" | "system" | "transfer";
 
+export type DonorResponse = "pending" | "accepted" | "refused";
+
 export interface AppNotification {
   id: string;
   type: NotificationType;
@@ -46,4 +48,5 @@ export interface AppNotification {
   message: string;
   timestamp: string;
   read: boolean;
+  response: DonorResponse;
 }

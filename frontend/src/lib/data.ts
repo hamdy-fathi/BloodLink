@@ -48,13 +48,13 @@ export const mockUsers: { email: string; password: string; user: User }[] = [
 
 // ── Mock notifications ──
 export const initialNotifications: AppNotification[] = [
-  { id: "n-1", type: "emergency", title: "Emergency: O- Needed", message: "Trauma Unit at Qasr Al-Ainy Hospital requires 6 units of O- immediately.", timestamp: "2026-04-05 20:45", read: false },
-  { id: "n-2", type: "shortage", title: "AB- Critical Shortage", message: "AB- stock is below 10% safety threshold across all Cairo facilities.", timestamp: "2026-04-05 19:30", read: false },
-  { id: "n-3", type: "donation", title: "Donation Completed", message: "Mohamed Tarek completed a successful O- donation at Nasr City Blood Center.", timestamp: "2026-04-05 18:15", read: false },
-  { id: "n-4", type: "transfer", title: "Transfer Dispatched", message: "12 units of AB- dispatched to Ain Shams Specialized Hospital. ETA 15 min.", timestamp: "2026-04-05 17:00", read: true },
-  { id: "n-5", type: "system", title: "System Maintenance", message: "Scheduled maintenance window tonight 02:00–04:00 (Cairo Time).", timestamp: "2026-04-05 14:00", read: true },
-  { id: "n-6", type: "shortage", title: "B- Warning Level", message: "B- inventory dropped to warning level (30 units) at Alexandria Regional Bank.", timestamp: "2026-04-05 12:30", read: true },
-  { id: "n-7", type: "donation", title: "New Donor Registered", message: "Aya Hesham registered as a B- donor in Zamalek, Cairo.", timestamp: "2026-04-04 16:45", read: true },
+  { id: "n-1", type: "emergency", title: "Emergency: O- Needed", message: "Trauma Unit at Qasr Al-Ainy Hospital requires 6 units of O- immediately.", timestamp: "2026-04-05 20:45", read: false, response: "pending" },
+  { id: "n-2", type: "shortage", title: "AB- Critical Shortage", message: "AB- stock is below 10% safety threshold across all Cairo facilities.", timestamp: "2026-04-05 19:30", read: false, response: "pending" },
+  { id: "n-3", type: "donation", title: "Donation Completed", message: "Mohamed Tarek completed a successful O- donation at Nasr City Blood Center.", timestamp: "2026-04-05 18:15", read: false, response: "pending" },
+  { id: "n-4", type: "transfer", title: "Transfer Dispatched", message: "12 units of AB- dispatched to Ain Shams Specialized Hospital. ETA 15 min.", timestamp: "2026-04-05 17:00", read: true, response: "pending" },
+  { id: "n-5", type: "system", title: "System Maintenance", message: "Scheduled maintenance window tonight 02:00–04:00 (Cairo Time).", timestamp: "2026-04-05 14:00", read: true, response: "pending" },
+  { id: "n-6", type: "shortage", title: "B- Warning Level", message: "B- inventory dropped to warning level (30 units) at Alexandria Regional Bank.", timestamp: "2026-04-05 12:30", read: true, response: "pending" },
+  { id: "n-7", type: "donation", title: "New Donor Registered", message: "Aya Hesham registered as a B- donor in Zamalek, Cairo.", timestamp: "2026-04-04 16:45", read: true, response: "pending" },
 ];
 
 export const initialInventory: BloodInventoryItem[] = [

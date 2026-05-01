@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useAppContext } from "@/lib/context";
 import { emergenciesApi } from "@/lib/api";
 import { useToast } from "@/components/Toast";
@@ -16,9 +17,6 @@ import {
   X,
   CheckCircle,
   Loader2,
-  Pencil,
-  Trash2,
-  MoreVertical,
 } from "lucide-react";
 
 interface Emergency {
@@ -42,18 +40,12 @@ interface MatchedDonor {
   score: number;
   city: string;
   phone: string;
-  isExactMatch: boolean;
-  daysSinceLastDonation: number;
-  recencyPenalty: number;
 }
 
 interface MatchResult {
   emergency: Emergency;
-  algorithm: string;
-  weights: { Wr: number; Wp: number; We: number };
   totalCompatible: number;
   highReliability: number;
-  exactMatches: number;
   donors: MatchedDonor[];
 }
 
@@ -67,7 +59,8 @@ function timeAgo(dateStr: string) {
 }
 
 export default function EmergenciesPage() {
-  const { isAuthenticated } = useAppContext();
+  const { isAuthenticated, currentUser } = useAppContext();
+  const router = useRouter();
   const [emergencies, setEmergencies] = useState<Emergency[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [matchResult, setMatchResult] = useState<MatchResult | null>(null);
@@ -77,23 +70,25 @@ export default function EmergenciesPage() {
   // Toast
   const { toast } = useToast();
 
+  // Donor guard
+  useEffect(() => {
+    if (currentUser?.role === "donor") router.replace("/");
+  }, [currentUser, router]);
+
+  if (currentUser?.role === "donor") return null;
+
   // Track which individual donors have been notified
   const [notifiedDonors, setNotifiedDonors] = useState<Set<string>>(new Set());
   const [notifyingDonor, setNotifyingDonor] = useState<string | null>(null);
   const [notifyingAll, setNotifyingAll] = useState(false);
 
-  // Create/Edit modal
-  const [showModal, setShowModal] = useState(false);
-  const [editingEmergency, setEditingEmergency] = useState<Emergency | null>(null);
+  // Create modal
+  const [showCreate, setShowCreate] = useState(false);
   const [formHospital, setFormHospital] = useState("");
   const [formDept, setFormDept] = useState("");
   const [formType, setFormType] = useState("O-");
   const [formUnits, setFormUnits] = useState("");
   const [formUrgency, setFormUrgency] = useState("Critical");
-
-  // Actions
-  const [openActionId, setOpenActionId] = useState<string | null>(null);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -105,7 +100,7 @@ export default function EmergenciesPage() {
           setSelectedId(res.data[0].id);
         }
       })
-      .catch(() => {});
+      .catch(() => { });
   }, [isAuthenticated]);
 
   // Load match when selection changes
@@ -118,7 +113,7 @@ export default function EmergenciesPage() {
     emergenciesApi
       .match(selectedId)
       .then((res) => setMatchResult(res.data))
-      .catch(() => {})
+      .catch(() => { })
       .finally(() => setLoadingMatch(false));
   }, [selectedId]);
 
@@ -170,75 +165,27 @@ export default function EmergenciesPage() {
     }
   }
 
-  function openCreateModal() {
-    setEditingEmergency(null);
-    setFormHospital("");
-    setFormDept("");
-    setFormType("O-");
-    setFormUnits("");
-    setFormUrgency("Critical");
-    setShowModal(true);
-  }
-
-  function openEditModal(emergency: Emergency) {
-    setEditingEmergency(emergency);
-    setFormHospital(emergency.hospital);
-    setFormDept(emergency.department);
-    setFormType(emergency.requiredType);
-    setFormUnits(String(emergency.unitsNeeded));
-    setFormUrgency(emergency.urgency);
-    setShowModal(true);
-    setOpenActionId(null);
-  }
-
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
     try {
-      if (editingEmergency) {
-        const res = await emergenciesApi.update(editingEmergency.id, {
-          hospital: formHospital,
-          department: formDept,
-          requiredType: formType,
-          unitsNeeded: parseInt(formUnits) || 1,
-          urgency: formUrgency,
-        });
-        setEmergencies((prev) =>
-          prev.map((em) => (em.id === editingEmergency.id ? res.data : em))
-        );
-        toast("success", "Emergency Updated", `${formHospital} request updated.`);
-      } else {
-        const res = await emergenciesApi.create({
-          hospital: formHospital,
-          department: formDept,
-          requiredType: formType,
-          unitsNeeded: parseInt(formUnits) || 1,
-          urgency: formUrgency,
-        });
-        setEmergencies((prev) => [res.data, ...prev]);
-        setSelectedId(res.data.id);
-        toast("success", "Emergency Created", `${formHospital} — ${formType} request added.`);
-      }
-      setShowModal(false);
+      const res = await emergenciesApi.create({
+        hospital: formHospital,
+        department: formDept,
+        requiredType: formType,
+        unitsNeeded: parseInt(formUnits) || 1,
+        urgency: formUrgency,
+      });
+      setEmergencies((prev) => [res.data, ...prev]);
+      setSelectedId(res.data.id);
+      setShowCreate(false);
+      setFormHospital("");
+      setFormDept("");
+      setFormType("O-");
+      setFormUnits("");
+      setFormUrgency("Critical");
     } catch {
-      toast("error", "Operation Failed", "Could not save emergency request.");
+      // silently fail
     }
-  }
-
-  async function handleDelete() {
-    if (!deletingId) return;
-    const em = emergencies.find((e) => e.id === deletingId);
-    try {
-      await emergenciesApi.remove(deletingId);
-      setEmergencies((prev) => prev.filter((e) => e.id !== deletingId));
-      if (selectedId === deletingId) {
-        setSelectedId(null);
-        setMatchResult(null);
-      }
-      toast("success", "Emergency Removed", `${em?.hospital ?? "Request"} has been deleted.`);
-    } catch {
-      toast("error", "Delete Failed", "Could not remove the emergency.");
-    }
-    setDeletingId(null);
   }
 
   return (
@@ -257,7 +204,7 @@ export default function EmergenciesPage() {
                 {emergencies.length}
               </span>
               <button
-                onClick={openCreateModal}
+                onClick={() => setShowCreate(true)}
                 className="p-2 rounded-lg bg-brand text-white hover:bg-brand-hover transition-colors"
               >
                 <Plus className="w-4 h-4" />
@@ -281,11 +228,10 @@ export default function EmergenciesPage() {
               <div
                 key={request.id}
                 onClick={() => setSelectedId(request.id)}
-                className={`bg-panel border rounded-xl p-5 cursor-pointer transition-all hover:shadow-lg ${
-                  selectedId === request.id
+                className={`bg-panel border rounded-xl p-5 cursor-pointer transition-all hover:shadow-lg ${selectedId === request.id
                     ? "border-brand/50 shadow-[0_0_15px_rgba(225,29,72,0.1)] relative overflow-hidden"
                     : "border-border hover:border-zinc-600"
-                }`}
+                  }`}
               >
                 {selectedId === request.id && (
                   <div className="absolute top-0 left-0 w-1 h-full bg-brand"></div>
@@ -294,13 +240,12 @@ export default function EmergenciesPage() {
                 <div className="flex justify-between items-start mb-3">
                   <div className="flex items-center gap-2">
                     <AlertCircle
-                      className={`w-4 h-4 ${
-                        request.urgency === "Critical"
+                      className={`w-4 h-4 ${request.urgency === "Critical"
                           ? "text-brand"
                           : request.urgency === "High"
-                          ? "text-amber-500"
-                          : "text-blue-500"
-                      }`}
+                            ? "text-amber-500"
+                            : "text-blue-500"
+                        }`}
                     />
                     <span className="text-xs font-semibold text-zinc-300">
                       {request.id.slice(0, 8)}
@@ -327,30 +272,6 @@ export default function EmergenciesPage() {
                     <span className="text-white">
                       {request.unitsNeeded} Units
                     </span>
-                  </div>
-                  <div className="relative">
-                    <button
-                      onClick={(e) => { e.stopPropagation(); setOpenActionId(openActionId === request.id ? null : request.id); }}
-                      className="text-zinc-500 hover:text-white transition-colors p-1"
-                    >
-                      <MoreVertical className="w-4 h-4" />
-                    </button>
-                    {openActionId === request.id && (
-                      <div className="absolute right-0 bottom-7 w-36 bg-panel border border-border rounded-lg shadow-xl z-20" onClick={(e) => e.stopPropagation()}>
-                        <button
-                          onClick={() => openEditModal(request)}
-                          className="flex items-center gap-2 w-full text-left px-4 py-2.5 text-sm text-zinc-300 hover:bg-zinc-800 transition-colors rounded-t-lg"
-                        >
-                          <Pencil className="w-3.5 h-3.5" /> Edit
-                        </button>
-                        <button
-                          onClick={() => { setDeletingId(request.id); setOpenActionId(null); }}
-                          className="flex items-center gap-2 w-full text-left px-4 py-2.5 text-sm text-red-500 hover:bg-zinc-800 transition-colors rounded-b-lg"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" /> Delete
-                        </button>
-                      </div>
-                    )}
                   </div>
                 </div>
               </div>
@@ -393,13 +314,13 @@ export default function EmergenciesPage() {
                       <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-brand"></span>
                     </span>
                     <span className="text-xs font-bold text-brand">
-                      {matchResult?.algorithm ?? "Engine Active"}
+                      Algorithm Active
                     </span>
                   </div>
                 </div>
 
                 {/* Match Stats */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4 relative z-10">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8 relative z-10">
                   <div className="bg-background border border-border rounded-xl p-4">
                     <div className="text-xs text-zinc-400 mb-1">
                       Required Type
@@ -407,6 +328,12 @@ export default function EmergenciesPage() {
                     <div className="text-xl font-bold text-brand">
                       {selected.requiredType}
                     </div>
+                  </div>
+                  <div className="bg-background border border-border rounded-xl p-4">
+                    <div className="text-xs text-zinc-400 mb-1">
+                      Distance Radius
+                    </div>
+                    <div className="text-xl font-bold text-white">15 km</div>
                   </div>
                   <div className="bg-background border border-border rounded-xl p-4">
                     <div className="text-xs text-zinc-400 mb-1">
@@ -418,37 +345,13 @@ export default function EmergenciesPage() {
                   </div>
                   <div className="bg-background border border-border rounded-xl p-4">
                     <div className="text-xs text-zinc-400 mb-1">
-                      Exact Matches
-                    </div>
-                    <div className="text-xl font-bold text-emerald-500">
-                      {loadingMatch ? "..." : `${matchResult?.exactMatches ?? 0}`}
-                    </div>
-                  </div>
-                  <div className="bg-background border border-border rounded-xl p-4">
-                    <div className="text-xs text-zinc-400 mb-1">
                       High Reliability
                     </div>
-                    <div className="text-xl font-bold text-blue-500">
-                      {loadingMatch ? "..." : `${matchResult?.highReliability ?? 0}`}
+                    <div className="text-xl font-bold text-emerald-500">
+                      {loadingMatch ? "..." : `${matchResult?.highReliability ?? 0} match`}
                     </div>
                   </div>
                 </div>
-
-                {/* Weight Profile */}
-                {matchResult?.weights && (
-                  <div className="flex items-center gap-3 mb-8 px-1">
-                    <span className="text-xs text-zinc-500">Weights:</span>
-                    <span className="text-xs bg-zinc-800 border border-zinc-700 rounded px-2 py-0.5 text-zinc-300">
-                      Reliability {Math.round(matchResult.weights.Wr * 100)}%
-                    </span>
-                    <span className="text-xs bg-zinc-800 border border-zinc-700 rounded px-2 py-0.5 text-zinc-300">
-                      Proximity {Math.round(matchResult.weights.Wp * 100)}%
-                    </span>
-                    <span className="text-xs bg-zinc-800 border border-zinc-700 rounded px-2 py-0.5 text-zinc-300">
-                      Exact Match {Math.round(matchResult.weights.We * 100)}%
-                    </span>
-                  </div>
-                )}
 
                 {/* Recommended Matches */}
                 <h3 className="text-lg font-semibold mb-4 border-b border-border pb-2 text-zinc-200">
@@ -467,11 +370,7 @@ export default function EmergenciesPage() {
                         className="flex items-center justify-between p-4 bg-background border border-border rounded-xl hover:border-zinc-600 transition-colors"
                       >
                         <div className="flex items-center gap-4">
-                          <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm ${
-                            donor.isExactMatch
-                              ? "bg-emerald-500/15 border border-emerald-500/30 text-emerald-400"
-                              : "bg-zinc-800 text-zinc-300"
-                          }`}>
+                          <div className="w-10 h-10 rounded-full bg-zinc-800 flex items-center justify-center font-bold text-sm">
                             {donor.name
                               .split(" ")
                               .map((n) => n[0])
@@ -479,26 +378,17 @@ export default function EmergenciesPage() {
                               .toUpperCase()}
                           </div>
                           <div>
-                            <h4 className="font-semibold text-white flex items-center gap-2">
+                            <h4 className="font-semibold text-white">
                               {donor.name}
-                              {donor.isExactMatch && (
-                                <span className="text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded px-1.5 py-0.5">EXACT</span>
-                              )}
                             </h4>
                             <p className="text-xs text-zinc-400 flex items-center gap-2 mt-1">
                               <span className="flex items-center gap-1">
-                                <MapPin className="w-3 h-3" /> {donor.distance} • {donor.city}
+                                <MapPin className="w-3 h-3" /> {donor.distance}
                               </span>
                               <span>•</span>
-                              <span className={`font-medium ${donor.reliability >= 90 ? "text-emerald-500" : donor.reliability >= 70 ? "text-amber-500" : "text-red-400"}`}>
-                                {donor.reliability}%
+                              <span className="text-emerald-500 font-medium">
+                                {donor.reliability}% Reliability
                               </span>
-                              {donor.recencyPenalty > 0 && (
-                                <>
-                                  <span>•</span>
-                                  <span className="text-amber-500 text-[10px]">⚠ donated {donor.daysSinceLastDonation}d ago</span>
-                                </>
-                              )}
                             </p>
                           </div>
                         </div>
@@ -518,13 +408,12 @@ export default function EmergenciesPage() {
                           <button
                             onClick={() => handleNotifySingle(donor)}
                             disabled={notifiedDonors.has(donor.id) || notifyingDonor === donor.id}
-                            className={`px-4 py-2 text-sm font-medium rounded-lg transition-all flex items-center gap-1.5 ${
-                              notifiedDonors.has(donor.id)
+                            className={`px-4 py-2 text-sm font-medium rounded-lg transition-all flex items-center gap-1.5 ${notifiedDonors.has(donor.id)
                                 ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 cursor-default"
                                 : notifyingDonor === donor.id
-                                ? "bg-zinc-800 text-zinc-400 cursor-wait"
-                                : "bg-zinc-800 hover:bg-zinc-700 text-white"
-                            }`}
+                                  ? "bg-zinc-800 text-zinc-400 cursor-wait"
+                                  : "bg-zinc-800 hover:bg-zinc-700 text-white"
+                              }`}
                           >
                             {notifiedDonors.has(donor.id) ? (
                               <><CheckCircle className="w-3.5 h-3.5" /> Sent</>
@@ -561,24 +450,24 @@ export default function EmergenciesPage() {
         </div>
       </main>
 
-      {/* Create/Edit Emergency Modal */}
-      {showModal && (
+      {/* Create Emergency Modal */}
+      {showCreate && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
-          onClick={() => setShowModal(false)}
+          onClick={() => setShowCreate(false)}
         >
           <div
             className="bg-panel border border-border rounded-2xl w-full max-w-md mx-4 p-6 shadow-2xl relative"
             onClick={(e) => e.stopPropagation()}
           >
             <button
-              onClick={() => setShowModal(false)}
+              onClick={() => setShowCreate(false)}
               className="absolute top-4 right-4 text-zinc-500 hover:text-white transition-colors"
             >
               <X className="w-5 h-5" />
             </button>
-            <h2 className="text-xl font-bold mb-6">{editingEmergency ? "Edit Emergency" : "New Emergency Request"}</h2>
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <h2 className="text-xl font-bold mb-6">New Emergency Request</h2>
+            <form onSubmit={handleCreate} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-zinc-300 mb-1">
                   Hospital
@@ -659,23 +548,9 @@ export default function EmergenciesPage() {
                 type="submit"
                 className="w-full py-2.5 bg-brand text-white rounded-lg text-sm font-semibold hover:bg-brand-hover transition-colors shadow-[0_0_15px_rgba(225,29,72,0.2)] mt-2"
               >
-                {editingEmergency ? "Save Changes" : "Create Emergency Request"}
+                Create Emergency Request
               </button>
             </form>
-          </div>
-        </div>
-      )}
-
-      {/* Delete Confirmation Modal */}
-      {deletingId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setDeletingId(null)}>
-          <div className="bg-panel border border-border rounded-2xl w-full max-w-sm mx-4 p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
-            <h2 className="text-lg font-bold mb-2">Remove Emergency</h2>
-            <p className="text-sm text-zinc-400 mb-6">Are you sure you want to delete this emergency request? This cannot be undone.</p>
-            <div className="flex gap-3">
-              <button onClick={() => setDeletingId(null)} className="flex-1 py-2 border border-border rounded-lg text-sm font-medium hover:bg-zinc-800 transition-colors">Cancel</button>
-              <button onClick={handleDelete} className="flex-1 py-2 bg-red-600 text-white rounded-lg text-sm font-semibold hover:bg-red-700 transition-colors">Delete</button>
-            </div>
           </div>
         </div>
       )}

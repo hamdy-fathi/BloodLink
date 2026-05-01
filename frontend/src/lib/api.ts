@@ -25,7 +25,9 @@ export const authApi = {
 
 // ── Users ──
 export const usersApi = {
+  getAll: () => api.get("/users"),
   getOne: (id: string) => api.get(`/users/${id}`),
+  create: (data: Record<string, unknown>) => api.post("/users", data),
   update: (id: string, data: Record<string, unknown>) =>
     api.patch(`/users/${id}`, data),
 };
@@ -59,6 +61,8 @@ export const notificationsApi = {
   getAll: () => api.get("/notifications"),
   markRead: (id: string) => api.patch(`/notifications/${id}/read`),
   markAllRead: () => api.patch("/notifications/read-all"),
+  respond: (id: string, response: "accepted" | "refused") =>
+    api.patch(`/notifications/${id}/respond`, { response }),
   dismiss: (id: string) => api.delete(`/notifications/${id}`),
   clearAll: () => api.delete("/notifications/clear-all"),
 };
