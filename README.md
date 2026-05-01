@@ -624,8 +624,26 @@ A standardized bug report template is used across the project to ensure consiste
 ```
 testing/
 ├── Test_Plan.pdf                   # Comprehensive software test plan (PDF)
+├── Test_Cases.pdf                  # 57 test cases: unit + system (PDF)
+├── Evidence_of_Testing.pdf         # Screenshots, logs, and CI evidence (PDF)
 ├── Bug_Report_Template.pdf         # Reusable bug report template (PDF)
 ├── Sample_Bug_Reports.pdf          # 8 sample bug reports (PDF) 
+evidence/
+├── cypress_system_test.png         # Cypress E2E — 4/4 tests passing
+├── Testcase_yml.png                # GitHub Actions CI — all steps green
+```
+
+### Running Tests
+
+```bash
+# Backend unit tests (53 tests, 6 suites)
+cd backend && npm run test
+
+# Backend unit tests with coverage report
+cd backend && npm run test:cov
+
+# Cypress system E2E tests (4 tests)
+cd frontend && npx cypress run
 ```
 
 ---
