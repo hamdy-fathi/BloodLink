@@ -4,12 +4,15 @@ import { Repository } from 'typeorm';
 import { Donor, BloodType } from '../entities/donor.entity.js';
 import { CreateDonorDto } from './dto/create-donor.dto.js';
 import { UpdateDonorDto } from './dto/update-donor.dto.js';
+import { AuditService } from '../audit/audit.service.js';
+import { AuditAction, AuditEntity } from '../entities/audit-log.entity.js';
 
 @Injectable()
 export class DonorsService {
   constructor(
     @InjectRepository(Donor)
     private readonly donorRepo: Repository<Donor>,
+    private readonly auditService: AuditService,
   ) {}
 
   async findAll(query?: { search?: string; bloodType?: string; available?: string }) {
@@ -55,7 +58,13 @@ export class DonorsService {
       available: dto.available ?? true,
       eligible: dto.eligible ?? true,
     });
-    return this.donorRepo.save(donor);
+    const saved = await this.donorRepo.save(donor);
+    await this.auditService.log(
+      AuditAction.CREATE, AuditEntity.DONOR, saved.id,
+      null, 'System',
+      `Donor "${saved.name}" (${saved.bloodType}) registered from ${saved.city}`,
+    );
+    return saved;
   }
 
   async update(id: string, dto: UpdateDonorDto) {
@@ -73,18 +82,37 @@ export class DonorsService {
     if (dto.available !== undefined) donor.available = dto.available;
     if (dto.eligible !== undefined) donor.eligible = dto.eligible;
 
-    return this.donorRepo.save(donor);
+    const saved = await this.donorRepo.save(donor);
+    await this.auditService.log(
+      AuditAction.UPDATE, AuditEntity.DONOR, saved.id,
+      null, 'System',
+      `Donor "${saved.name}" profile updated`,
+    );
+    return saved;
   }
 
   async toggleAvailability(id: string) {
     const donor = await this.findOne(id);
     donor.available = !donor.available;
-    return this.donorRepo.save(donor);
+    const saved = await this.donorRepo.save(donor);
+    await this.auditService.log(
+      AuditAction.TOGGLE, AuditEntity.DONOR, saved.id,
+      null, 'System',
+      `Donor "${saved.name}" availability set to ${saved.available ? 'available' : 'unavailable'}`,
+    );
+    return saved;
   }
 
   async remove(id: string) {
     const donor = await this.findOne(id);
+    const donorName = donor.name;
+    const donorId = donor.id;
     await this.donorRepo.remove(donor);
+    await this.auditService.log(
+      AuditAction.DELETE, AuditEntity.DONOR, donorId,
+      null, 'System',
+      `Donor "${donorName}" removed from the registry`,
+    );
     return { deleted: true };
   }
 

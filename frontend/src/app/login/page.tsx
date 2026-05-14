@@ -143,6 +143,7 @@ export default function LoginPage() {
                 { email: "admin@bloodlink.org", pass: "admin123", role: "Admin" },
                 { email: "staff@qasr.org", pass: "staff123", role: "Staff" },
                 { email: "manager@dar-elfouad.org", pass: "manager123", role: "Manager" },
+                { email: "donor@bloodlink.org", pass: "donor123", role: "Donor" },
               ].map((cred) => (
                 <button
                   key={cred.email}
@@ -160,6 +161,16 @@ export default function LoginPage() {
                 </button>
               ))}
             </div>
+          </div>
+
+          {/* Register link */}
+          <div className="mt-6 text-center relative z-10">
+            <p className="text-sm text-zinc-500">
+              Want to become a donor?{" "}
+              <a href="/register" className="text-brand hover:text-brand-hover font-semibold transition-colors">
+                Register as Donor →
+              </a>
+            </p>
           </div>
         </div>
       </div>

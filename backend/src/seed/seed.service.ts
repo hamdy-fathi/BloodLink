@@ -33,6 +33,7 @@ export class SeedService implements OnModuleInit {
     const hashedAdmin = await bcrypt.hash('admin123', 10);
     const hashedStaff = await bcrypt.hash('staff123', 10);
     const hashedManager = await bcrypt.hash('manager123', 10);
+    const hashedDonor = await bcrypt.hash('donor123', 10);
 
     const users = await this.userRepo.save([
       {
@@ -65,13 +66,23 @@ export class SeedService implements OnModuleInit {
         hospital: 'Dar El Fouad Hospital',
         joinedAt: new Date('2024-08-22'),
       },
+      {
+        name: 'Mohamed Tarek',
+        email: 'donor@bloodlink.org',
+        phone: '+20-100-555-0101',
+        password: hashedDonor,
+        role: UserRole.DONOR,
+        avatar: 'MT',
+        hospital: '',
+        joinedAt: new Date('2025-06-01'),
+      },
     ]);
 
     this.logger.log(`✅ Seeded ${users.length} users`);
 
     // ── Donors ──
     const donors = await this.donorRepo.save([
-      { name: 'Mohamed Tarek', email: 'mtarek@mail.com', phone: '+20-100-555-0101', bloodType: BloodType.O_NEG, age: 32, lastDonation: '2026-03-10', totalDonations: 14, reliability: 98, available: true, city: 'Nasr City', eligible: true },
+      { name: 'Mohamed Tarek', email: 'donor@bloodlink.org', phone: '+20-100-555-0101', bloodType: BloodType.O_NEG, age: 32, lastDonation: '2026-03-10', totalDonations: 14, reliability: 98, available: true, city: 'Nasr City', eligible: true },
       { name: 'Sara El-Sayed', email: 'sara.elsayed@mail.com', phone: '+20-112-555-0102', bloodType: BloodType.A_POS, age: 28, lastDonation: '2026-02-22', totalDonations: 8, reliability: 95, available: true, city: 'Zamalek', eligible: true },
       { name: 'Youssef Kamal', email: 'ykamal@mail.com', phone: '+20-128-555-0103', bloodType: BloodType.O_POS, age: 41, lastDonation: '2026-01-15', totalDonations: 22, reliability: 82, available: false, city: 'Heliopolis', eligible: true },
       { name: 'Nour Hassan', email: 'nhassan@mail.com', phone: '+20-100-555-0104', bloodType: BloodType.B_POS, age: 35, lastDonation: '2026-03-28', totalDonations: 5, reliability: 90, available: true, city: 'Maadi', eligible: false },

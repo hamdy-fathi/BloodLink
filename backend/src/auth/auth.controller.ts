@@ -2,6 +2,7 @@ import { Controller, Post, Body, Get, UseGuards, Req } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { AuthService } from './auth.service.js';
 import { LoginDto } from './dto/login.dto.js';
+import { RegisterDto } from './dto/register.dto.js';
 
 @Controller('auth')
 export class AuthController {
@@ -12,9 +13,15 @@ export class AuthController {
     return this.authService.login(dto.email, dto.password);
   }
 
+  @Post('register')
+  async register(@Body() dto: RegisterDto) {
+    return this.authService.register(dto);
+  }
+
   @Get('me')
   @UseGuards(AuthGuard('jwt'))
   async me(@Req() req: any) {
     return this.authService.getProfile(req.user.userId);
   }
 }
+

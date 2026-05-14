@@ -4,12 +4,15 @@ import { Repository } from 'typeorm';
 import { BloodInventory, InventoryStatus } from '../entities/blood-inventory.entity.js';
 import { CreateInventoryDto } from './dto/create-inventory.dto.js';
 import { UpdateInventoryDto } from './dto/update-inventory.dto.js';
+import { AuditService } from '../audit/audit.service.js';
+import { AuditAction, AuditEntity } from '../entities/audit-log.entity.js';
 
 @Injectable()
 export class InventoryService {
   constructor(
     @InjectRepository(BloodInventory)
     private readonly invRepo: Repository<BloodInventory>,
+    private readonly auditService: AuditService,
   ) {}
 
   async findAll(status?: string) {
@@ -39,7 +42,13 @@ export class InventoryService {
       critical: dto.units <= 30,
       lastUpdated: new Date(),
     });
-    return this.invRepo.save(item);
+    const saved = await this.invRepo.save(item);
+    await this.auditService.log(
+      AuditAction.CREATE, AuditEntity.INVENTORY, saved.id,
+      null, 'System',
+      `Inventory item "${saved.type}" created with ${saved.units} units (${saved.status})`,
+    );
+    return saved;
   }
 
   async update(id: string, dto: UpdateInventoryDto) {
@@ -56,12 +65,25 @@ export class InventoryService {
     }
 
     item.lastUpdated = new Date();
-    return this.invRepo.save(item);
+    const saved = await this.invRepo.save(item);
+    await this.auditService.log(
+      AuditAction.UPDATE, AuditEntity.INVENTORY, saved.id,
+      null, 'System',
+      `Inventory "${saved.type}" updated to ${saved.units} units (${saved.status})`,
+    );
+    return saved;
   }
 
   async remove(id: string) {
     const item = await this.findOne(id);
+    const itemType = item.type;
+    const itemId = item.id;
     await this.invRepo.remove(item);
+    await this.auditService.log(
+      AuditAction.DELETE, AuditEntity.INVENTORY, itemId,
+      null, 'System',
+      `Inventory item "${itemType}" removed`,
+    );
     return { deleted: true };
   }
 
@@ -71,3 +93,4 @@ export class InventoryService {
     return InventoryStatus.HEALTHY;
   }
 }
+

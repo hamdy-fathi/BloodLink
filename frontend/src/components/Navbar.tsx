@@ -26,6 +26,9 @@ const allNavLinks = [
   { href: "/inventory", label: "Inventory", roles: ["admin", "staff", "manager"] },
   { href: "/donors", label: "Donors", roles: ["admin", "staff", "manager"] },
   { href: "/emergencies", label: "Emergencies", roles: ["admin", "staff", "manager"] },
+  { href: "/analytics", label: "Analytics", roles: ["admin", "staff", "manager"] },
+  { href: "/map", label: "Map", roles: ["admin", "staff", "manager"] },
+  { href: "/activity", label: "Activity", roles: ["admin"] },
   { href: "/notifications", label: "My Requests", roles: ["donor"] },
 ];
 
@@ -80,7 +83,7 @@ export default function Navbar() {
 
   if (!isAuthenticated) {
     return (
-      <header className="sticky top-0 z-50 border-b border-border bg-background/80 backdrop-blur-md shadow-sm">
+      <header className="sticky top-0 z-50 border-b border-border bg-panel shadow-md">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-brand/10 border border-brand/20 flex items-center justify-center">
@@ -102,7 +105,7 @@ export default function Navbar() {
   }
 
   return (
-    <header className="sticky top-0 z-50 border-b border-border bg-background/80 backdrop-blur-md shadow-sm">
+    <header className="sticky top-0 z-50 border-b border-border bg-panel shadow-md">
       <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
         <Link href="/" className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-full bg-brand/10 border border-brand/20 flex items-center justify-center">

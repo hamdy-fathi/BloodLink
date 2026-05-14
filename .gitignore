@@ -5,3 +5,10 @@ testing/Test_Cases.md
 testing/Evidence_of_Testing.md
 testing/Team3_BloodLink_Phase6.rar
 testing/Team3_BloodLink_Phase6.zip
+
+# Node
+node_modules/
+*/node_modules/
+
+# Large Media
+*.mp4

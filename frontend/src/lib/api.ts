@@ -20,6 +20,8 @@ api.interceptors.request.use((config) => {
 export const authApi = {
   login: (email: string, password: string) =>
     api.post("/auth/login", { email, password }),
+  register: (data: Record<string, unknown>) =>
+    api.post("/auth/register", data),
   me: () => api.get("/auth/me"),
 };
 
@@ -78,6 +80,18 @@ export const emergenciesApi = {
   match: (id: string) => api.get(`/emergencies/${id}/match`),
   notify: (id: string) => api.post(`/emergencies/${id}/notify`),
   resolve: (id: string) => api.patch(`/emergencies/${id}/resolve`),
+};
+
+// ── Audit Log ──
+export const auditApi = {
+  getAll: (params?: Record<string, string>) =>
+    api.get("/audit", { params }),
+  getStats: () => api.get("/audit/stats"),
+};
+
+// ── Map ──
+export const mapApi = {
+  getData: () => api.get("/map/data"),
 };
 
 export default api;

@@ -130,13 +130,18 @@ The frontend starts on `http://localhost:3000`.
 - Hospital and department tracking
 - Integrated with the Matching Engine for immediate donor search
 
-### 🧠 Intelligent Matching Engine v2
+### 🧠 Intelligent Matching Engine v3
 - Multi-factor scoring algorithm for optimal donor-patient pairing
-- Haversine-based geospatial distance calculation
+- **Dijkstra’s Shortest Path Algorithm** using a mapped Cairo road network for realistic driving distances
 - Urgency-adaptive weight profiles
 - Exact blood type match prioritization
 - Donor recency safety penalty (8-week cooldown)
-- *(See [Matching Engine v2](#-matching-engine-v2) section for full details)*
+
+### 🧭 Donor Interactive Routing & Workflow
+- End-to-end acceptance flow: Donors confirm emergency requests directly from their dashboard
+- **Automated Side Effects**: Acceptance automatically toggles global donor availability off to prevent double-booking
+- **Directions Modal**: Triggers an interactive React-Leaflet map pinned to the hospital, providing immediate visual routing
+- **System-Wide Alerts**: Instantly notifies hospital admins when a donor accepts and goes en route, logging an official audit trail
 
 ### 🔔 Notification System
 - 5 notification categories: Emergency, Shortage, Donation, Transfer, System
@@ -159,9 +164,9 @@ The frontend starts on `http://localhost:3000`.
 
 ---
 
-## 🧠 Matching Engine v2
+## 🧠 Matching Engine v3
 
-The core of BloodLink is its **multi-factor donor matching algorithm** that scores and ranks compatible donors for each emergency blood request.
+The core of BloodLink is its **multi-factor donor matching algorithm** that scores and ranks compatible donors for each emergency blood request. In v3, we upgraded the geospatial calculation from straight-line Haversine to realistic road-network routing using **Dijkstra's Algorithm**.
 
 ### Formula
 
@@ -189,33 +194,24 @@ Where `Wr`, `Wp`, and `We` are urgency-adaptive weights.
 | 🟡 **Medium** | 55% | 25% | 20% | Reliability-heavy — best donor quality |
 | 🟢 **Low** | 60% | 20% | 20% | Quality-first — distance is less critical |
 
-### Distance Calculation
+### Distance Calculation (Dijkstra's Algorithm)
 
-Distances are calculated using the **Haversine formula** between mapped Cairo district coordinates:
+To provide realistic ETA and donor dispatch calculations, straight-line (Haversine) distances have been entirely replaced with **Dijkstra's Shortest Path Algorithm**. The system utilizes an internal adjacency list (`CAIRO_ROAD_GRAPH`) mapping the actual road distances (in km) between 15 major Cairo districts.
 
+When an emergency is generated at a specific hospital, the Matching Engine:
+1. Identifies the hospital's district.
+2. Identifies all eligible donors' home districts.
+3. Runs Dijkstra's algorithm to compute the shortest driving path across the weighted road graph.
+
+```typescript
+// Example subset of the CAIRO_ROAD_GRAPH adjacency list
+const CAIRO_ROAD_GRAPH: Record<string, Record<string, number>> = {
+  "Downtown": { "Zamalek": 3.5, "Dokki": 4.2, "El Manial": 2.8, "Shubra": 6.5 },
+  "Nasr City": { "Heliopolis": 5.2, "New Cairo": 14.5, "Downtown": 12.8 },
+  "6th of October City": { "Dokki": 28.5, "Zamalek": 31.2 },
+  // ... maps all 15 districts for complete topological coverage
+};
 ```
-d = 2R × arcsin(√(sin²(Δlat/2) + cos(lat₁) × cos(lat₂) × sin²(Δlng/2)))
-```
-
-**15 Cairo districts** are mapped with real GPS coordinates:
-
-| District | Latitude | Longitude |
-|---|---|---|
-| Nasr City | 30.0511 | 31.3456 |
-| Zamalek | 30.0608 | 31.2194 |
-| Heliopolis | 30.0866 | 31.3225 |
-| Maadi | 29.9602 | 31.2569 |
-| Dokki | 30.0382 | 31.2049 |
-| 6th of October City | 29.9723 | 30.9446 |
-| Mohandessin | 30.0545 | 31.2003 |
-| New Cairo | 30.0098 | 31.4913 |
-| Downtown | 30.0444 | 31.2357 |
-| Giza | 30.0131 | 31.2089 |
-| Shubra | 30.1073 | 31.2497 |
-| Ain Shams | 30.1310 | 31.3279 |
-| El Marg | 30.1640 | 31.3540 |
-| El Matariya | 30.1231 | 31.3130 |
-| El Manial | 30.0100 | 31.2270 |
 
 ### Blood Compatibility Matrix
 

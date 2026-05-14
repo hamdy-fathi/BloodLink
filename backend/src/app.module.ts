@@ -10,6 +10,7 @@ import { Donor } from './entities/donor.entity.js';
 import { BloodInventory } from './entities/blood-inventory.entity.js';
 import { Notification } from './entities/notification.entity.js';
 import { EmergencyRequest } from './entities/emergency-request.entity.js';
+import { AuditLog } from './entities/audit-log.entity.js';
 
 // Feature Modules
 import { AuthModule } from './auth/auth.module.js';
@@ -19,6 +20,8 @@ import { InventoryModule } from './inventory/inventory.module.js';
 import { NotificationsModule } from './notifications/notifications.module.js';
 import { EmergenciesModule } from './emergencies/emergencies.module.js';
 import { SeedModule } from './seed/seed.module.js';
+import { AuditModule } from './audit/audit.module.js';
+import { MapModule } from './map/map.module.js';
 
 @Module({
   imports: [
@@ -34,7 +37,7 @@ import { SeedModule } from './seed/seed.module.js';
         username: configService.get<string>('DB_USERNAME'),
         password: configService.get<string>('DB_PASSWORD'),
         database: configService.get<string>('DB_NAME'),
-        entities: [User, Donor, BloodInventory, Notification, EmergencyRequest],
+        entities: [User, Donor, BloodInventory, Notification, EmergencyRequest, AuditLog],
         synchronize: true, // auto-create tables (dev only)
         logging: false,
       }),
@@ -47,6 +50,8 @@ import { SeedModule } from './seed/seed.module.js';
     NotificationsModule,
     EmergenciesModule,
     SeedModule,
+    AuditModule,
+    MapModule,
   ],
   controllers: [AppController],
   providers: [AppService],

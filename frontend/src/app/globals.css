@@ -41,3 +41,22 @@ body {
 .animate-slide-in {
   animation: slide-in 0.3s ease-out;
 }
+
+/* Leaflet dark popup overrides */
+.leaflet-popup-content-wrapper {
+  background: #18181b !important;
+  border: 1px solid #3f3f46 !important;
+  border-radius: 12px !important;
+  color: #e4e4e7 !important;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5) !important;
+}
+.leaflet-popup-tip {
+  background: #18181b !important;
+  border: 1px solid #3f3f46 !important;
+}
+.leaflet-popup-close-button {
+  color: #71717a !important;
+}
+.leaflet-popup-close-button:hover {
+  color: #e4e4e7 !important;
+}

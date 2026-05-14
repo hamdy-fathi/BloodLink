@@ -6,9 +6,11 @@ import { EmergencyRequest } from '../entities/emergency-request.entity.js';
 import { DonorsModule } from '../donors/donors.module.js';
 import { NotificationsModule } from '../notifications/notifications.module.js';
 
+import { User } from '../entities/user.entity.js';
+
 @Module({
   imports: [
-    TypeOrmModule.forFeature([EmergencyRequest]),
+    TypeOrmModule.forFeature([EmergencyRequest, User]),
     DonorsModule,
     NotificationsModule,
   ],

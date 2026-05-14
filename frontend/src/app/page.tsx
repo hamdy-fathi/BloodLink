@@ -1,11 +1,25 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useAppContext } from "@/lib/context";
 import Navbar from "@/components/Navbar";
 import { useToast } from "@/components/Toast";
-import { Activity, Users, BellRing, Search, Plus, MapPin, ArrowRight, HeartPulse, AlertCircle, Package, Heart, Settings, ArrowRightLeft, CheckCircle, XCircle, Loader2 } from "lucide-react";
-import { NotificationType } from "@/lib/types";
+import { donorsApi } from "@/lib/api";
+import { Activity, Users, BellRing, Search, Plus, MapPin, ArrowRight, HeartPulse, AlertCircle, Package, Heart, Settings, ArrowRightLeft, CheckCircle, XCircle, Loader2, Droplet, Clock, Calendar, ToggleLeft, ToggleRight, Shield } from "lucide-react";
+import { NotificationType, Donor } from "@/lib/types";
+import dynamic from "next/dynamic";
+
+const MapContainer = dynamic(() => import("react-leaflet").then((mod) => mod.MapContainer), { ssr: false });
+const TileLayer = dynamic(() => import("react-leaflet").then((mod) => mod.TileLayer), { ssr: false });
+const Marker = dynamic(() => import("react-leaflet").then((mod) => mod.Marker), { ssr: false });
+const Popup = dynamic(() => import("react-leaflet").then((mod) => mod.Popup), { ssr: false });
+
+const HOSPITAL_COORDS: Record<string, [number, number]> = {
+  "Qasr Al-Ainy Hospital": [30.0444, 31.2357],
+  "Ain Shams Specialized Hospital": [30.1310, 31.3279],
+  "Dar El Fouad Hospital": [29.9723, 30.9446],
+  "National Blood Bank of Egypt": [30.0444, 31.2357],
+};
 
 function notifIcon(type: NotificationType) {
   switch (type) {
@@ -166,31 +180,77 @@ function AdminDashboard() {
 
 // ── Donor Dashboard ──
 function DonorDashboard() {
-  const { currentUser, notifications, respondToNotification } = useAppContext();
+  const { currentUser, donors, notifications, respondToNotification } = useAppContext();
   const { toast } = useToast();
   const [respondingId, setRespondingId] = useState<string | null>(null);
+  const [togglingAvail, setTogglingAvail] = useState(false);
+  const [myDonor, setMyDonor] = useState<Donor | null>(null);
+  
+  // Routing Modal States
+  const [showDirectionsModal, setShowDirectionsModal] = useState(false);
+  const [selectedHospital, setSelectedHospital] = useState<string | null>(null);
+  const [hospitalCoords, setHospitalCoords] = useState<[number, number]>([30.0444, 31.2357]);
 
-  // Donor only sees emergency-type notifications (requests directed at them)
+  // Find the donor record for the current user (match by email)
+  useEffect(() => {
+    if (currentUser && donors.length > 0) {
+      const found = donors.find((d) => d.email === currentUser.email);
+      if (found) setMyDonor(found);
+    }
+  }, [currentUser, donors]);
+
+  // Eligibility calculation (56-day WHO window)
+  const eligibility = useMemo(() => {
+    if (!myDonor?.lastDonation) return { eligible: true, daysLeft: 0, daysSince: 999, progress: 100 };
+    const lastDate = new Date(myDonor.lastDonation);
+    const daysSince = Math.floor((Date.now() - lastDate.getTime()) / (1000 * 60 * 60 * 24));
+    const daysLeft = Math.max(0, 56 - daysSince);
+    const progress = Math.min(100, Math.round((daysSince / 56) * 100));
+    return { eligible: daysLeft === 0, daysLeft, daysSince, progress };
+  }, [myDonor]);
+
   const emergencyNotifs = notifications.filter((n) => n.type === "emergency");
   const otherNotifs = notifications.filter((n) => n.type !== "emergency");
   const pendingCount = emergencyNotifs.filter((n) => n.response === "pending").length;
   const acceptedCount = emergencyNotifs.filter((n) => n.response === "accepted").length;
 
-  async function handleRespond(id: string, response: "accepted" | "refused") {
+  async function handleRespond(id: string, response: "accepted" | "refused", message?: string) {
     setRespondingId(id);
     try {
       await respondToNotification(id, response);
-      toast(
-        response === "accepted" ? "success" : "info",
-        response === "accepted" ? "Request Accepted" : "Request Declined",
-        response === "accepted"
-          ? "Thank you! The hospital has been notified of your availability."
-          : "The hospital will look for another donor."
-      );
+      if (response === "accepted") {
+        toast("success", "Request Accepted", "Thank you! Generating your route...");
+        
+        // Extract hospital name from message if available
+        let hName = "the hospital";
+        if (message) {
+          const match = message.match(/at (.*?)(?=\s*\()/);
+          if (match) hName = match[1].trim();
+        }
+        setSelectedHospital(hName);
+        setHospitalCoords(HOSPITAL_COORDS[hName] || [30.0444, 31.2357]);
+        setShowDirectionsModal(true);
+      } else {
+        toast("info", "Request Declined", "The hospital will look for another donor.");
+      }
     } catch {
       toast("error", "Failed", "Could not send your response. Please try again.");
     } finally {
       setRespondingId(null);
+    }
+  }
+
+  async function handleToggleAvailability() {
+    if (!myDonor) return;
+    setTogglingAvail(true);
+    try {
+      const res = await donorsApi.toggleAvailability(myDonor.id);
+      setMyDonor(res.data);
+      toast("success", "Status Updated", `You are now ${res.data.available ? "available" : "unavailable"} for donations.`);
+    } catch {
+      toast("error", "Failed", "Could not update your availability.");
+    } finally {
+      setTogglingAvail(false);
     }
   }
 
@@ -202,12 +262,100 @@ function DonorDashboard() {
           Welcome, {currentUser?.name?.split(" ")[0]}
         </h1>
         <p className="text-zinc-400 max-w-xl">
-          Here are your blood donation requests and notifications.
+          Your donor portal — manage availability, track eligibility, and respond to emergencies.
         </p>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      {/* Enhanced Stats Row */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Blood Type Card */}
+        <div className="bg-panel border border-border rounded-2xl p-6 relative overflow-hidden group hover:border-zinc-700 transition-colors">
+          <div className="absolute -right-4 -top-4 w-24 h-24 bg-brand/5 rounded-full blur-2xl group-hover:bg-brand/10 transition-colors"></div>
+          <div className="flex items-center justify-between mb-4">
+            <span className="text-zinc-400 text-sm font-medium">Blood Type</span>
+            <Droplet className="w-5 h-5 text-brand" />
+          </div>
+          <span className="text-3xl font-bold text-brand">{myDonor?.bloodType || "—"}</span>
+          <p className="mt-3 text-xs text-zinc-500">
+            {myDonor?.bloodType === "O-" ? "Universal donor" :
+             myDonor?.bloodType === "AB+" ? "Universal recipient" :
+             myDonor?.bloodType ? `Type ${myDonor.bloodType} donor` : "Not set"}
+          </p>
+        </div>
+
+        {/* Eligibility Countdown */}
+        <div className="bg-panel border border-border rounded-2xl p-6 relative overflow-hidden group hover:border-zinc-700 transition-colors">
+          <div className="absolute -right-4 -top-4 w-24 h-24 bg-emerald-500/5 rounded-full blur-2xl group-hover:bg-emerald-500/10 transition-colors"></div>
+          <div className="flex items-center justify-between mb-4">
+            <span className="text-zinc-400 text-sm font-medium">Eligibility</span>
+            <Clock className="w-5 h-5 text-emerald-500" />
+          </div>
+          {eligibility.eligible ? (
+            <div className="flex items-center gap-2">
+              <span className="text-2xl font-bold text-emerald-500">Eligible</span>
+              <Shield className="w-4 h-4 text-emerald-500" />
+            </div>
+          ) : (
+            <div className="flex items-baseline gap-2">
+              <span className="text-3xl font-bold text-amber-500">{eligibility.daysLeft}</span>
+              <span className="text-sm text-zinc-500">days left</span>
+            </div>
+          )}
+          <div className="mt-3 h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+            <div
+              className={`h-full rounded-full transition-all ${eligibility.eligible ? "bg-emerald-500" : "bg-amber-500"}`}
+              style={{ width: `${eligibility.progress}%` }}
+            ></div>
+          </div>
+          <p className="mt-2 text-[10px] text-zinc-500">56-day WHO safety window</p>
+        </div>
+
+        {/* Donation Stats */}
+        <div className="bg-panel border border-border rounded-2xl p-6 relative overflow-hidden group hover:border-zinc-700 transition-colors">
+          <div className="absolute -right-4 -top-4 w-24 h-24 bg-blue-500/5 rounded-full blur-2xl group-hover:bg-blue-500/10 transition-colors"></div>
+          <div className="flex items-center justify-between mb-4">
+            <span className="text-zinc-400 text-sm font-medium">Donations</span>
+            <Calendar className="w-5 h-5 text-blue-500" />
+          </div>
+          <div className="flex items-baseline gap-2">
+            <span className="text-3xl font-bold">{myDonor?.totalDonations ?? 0}</span>
+            <span className="text-sm text-zinc-500">total</span>
+          </div>
+          <p className="mt-3 text-xs text-zinc-500">
+            Last: {myDonor?.lastDonation ? new Date(myDonor.lastDonation).toLocaleDateString() : "Never"}
+          </p>
+        </div>
+
+        {/* Availability Toggle */}
+        <div
+          className={`rounded-2xl p-6 relative overflow-hidden cursor-pointer transition-all ${
+            myDonor?.available
+              ? "bg-emerald-500/10 border border-emerald-500/20 hover:border-emerald-500/40"
+              : "bg-zinc-800/50 border border-zinc-700 hover:border-zinc-600"
+          }`}
+          onClick={handleToggleAvailability}
+        >
+          <div className="flex items-center justify-between mb-4">
+            <span className={`text-sm font-semibold ${myDonor?.available ? "text-emerald-400" : "text-zinc-400"}`}>
+              Availability
+            </span>
+            {togglingAvail ? (
+              <Loader2 className="w-5 h-5 animate-spin text-zinc-400" />
+            ) : myDonor?.available ? (
+              <ToggleRight className="w-6 h-6 text-emerald-500" />
+            ) : (
+              <ToggleLeft className="w-6 h-6 text-zinc-500" />
+            )}
+          </div>
+          <span className={`text-2xl font-bold ${myDonor?.available ? "text-emerald-400" : "text-zinc-400"}`}>
+            {myDonor?.available ? "Available" : "Unavailable"}
+          </span>
+          <p className="mt-2 text-xs text-zinc-500">Click to toggle</p>
+        </div>
+      </div>
+
+      {/* Request Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="bg-panel border border-border rounded-2xl p-6 relative overflow-hidden">
           <div className="absolute -right-4 -top-4 w-24 h-24 bg-red-500/5 rounded-full blur-2xl"></div>
           <div className="flex items-center justify-between mb-4">
@@ -219,7 +367,6 @@ function DonorDashboard() {
             <span className="text-sm text-zinc-500">pending</span>
           </div>
         </div>
-
         <div className="bg-panel border border-border rounded-2xl p-6 relative overflow-hidden">
           <div className="absolute -right-4 -top-4 w-24 h-24 bg-emerald-500/5 rounded-full blur-2xl"></div>
           <div className="flex items-center justify-between mb-4">
@@ -229,17 +376,6 @@ function DonorDashboard() {
           <div className="flex items-baseline gap-2">
             <span className="text-3xl font-bold text-emerald-500">{acceptedCount}</span>
             <span className="text-sm text-zinc-500">donations</span>
-          </div>
-        </div>
-
-        <div className="bg-brand/10 border border-brand/20 rounded-2xl p-6 relative overflow-hidden">
-          <div className="flex items-center justify-between mb-4">
-            <span className="text-brand text-sm font-semibold">Your Role</span>
-            <HeartPulse className="w-5 h-5 text-brand" />
-          </div>
-          <div className="flex flex-col gap-1">
-            <span className="text-2xl font-bold text-white">Blood Donor</span>
-            <span className="text-sm text-zinc-300">Thank you for saving lives</span>
           </div>
         </div>
       </div>
@@ -299,7 +435,7 @@ function DonorDashboard() {
                     {n.response === "pending" && (
                       <div className="flex items-center gap-2">
                         <button
-                          onClick={() => handleRespond(n.id, "accepted")}
+                          onClick={() => handleRespond(n.id, "accepted", n.message)}
                           disabled={respondingId === n.id}
                           className="flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20 transition-colors disabled:opacity-50"
                         >
@@ -353,6 +489,56 @@ function DonorDashboard() {
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* Directions Modal */}
+      {showDirectionsModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-panel border border-border rounded-2xl w-full max-w-2xl overflow-hidden shadow-2xl flex flex-col">
+            <div className="p-6 border-b border-border flex items-center justify-between">
+              <div>
+                <h3 className="text-xl font-bold flex items-center gap-2">
+                  <MapPin className="w-5 h-5 text-brand" />
+                  Route to {selectedHospital}
+                </h3>
+                <p className="text-zinc-400 text-sm mt-1">Please proceed to the emergency department immediately.</p>
+              </div>
+              <button 
+                onClick={() => setShowDirectionsModal(false)}
+                className="text-zinc-400 hover:text-white transition-colors"
+              >
+                <XCircle className="w-6 h-6" />
+              </button>
+            </div>
+            
+            <div className="h-[400px] w-full bg-zinc-900 relative">
+              <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+              <MapContainer
+                center={hospitalCoords}
+                zoom={14}
+                style={{ height: "100%", width: "100%" }}
+                zoomControl={false}
+              >
+                <TileLayer url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png" />
+                <Marker position={hospitalCoords}>
+                  <Popup>
+                    <strong style={{ color: '#000' }}>{selectedHospital}</strong><br/>
+                    Emergency Department
+                  </Popup>
+                </Marker>
+              </MapContainer>
+            </div>
+            
+            <div className="p-4 bg-zinc-900/50 flex justify-end gap-3">
+              <button
+                onClick={() => setShowDirectionsModal(false)}
+                className="px-6 py-2.5 bg-brand hover:bg-brand/90 text-white rounded-xl font-medium transition-colors"
+              >
+                I am on my way
+              </button>
+            </div>
           </div>
         </div>
       )}
